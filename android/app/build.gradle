@@ -1,0 +1,126 @@
+apply plugin: "com.android.application"
+apply plugin: "com.facebook.react"
+apply plugin: "org.jetbrains.kotlin.android"
+apply plugin: "com.google.gms.google-services"
+
+apply from: "../../node_modules/react-native-vector-icons/fonts.gradle"
+
+react {
+    hermesEnabled = true
+}
+
+def enableProguardInReleaseBuilds = true
+
+android {
+    namespace "com.digital2pay"
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.digital2pay"
+        minSdk 24
+        targetSdk 34
+        versionCode 1   // 🔥 IMPORTANT: Play Store upload me increment karna
+        versionName "0.0.1"
+        multiDexEnabled true
+    }
+ 
+
+    signingConfigs {
+        release {
+            if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
+                storeFile file(MYAPP_UPLOAD_STORE_FILE)
+                storePassword MY_KEYSTORE_PASSWORD
+                keyAlias MY_KEY_ALIAS
+                keyPassword MY_KEY_PASSWORD
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            signingConfig signingConfigs.debug
+        }
+
+        release {
+            signingConfig signingConfigs.release
+            minifyEnabled enableProguardInReleaseBuilds
+            shrinkResources true
+            proguardFiles getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro"
+        }
+    }
+
+    packagingOptions {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+            excludes += 'META-INF/*.kotlin_module'
+        }
+jniLibs {
+        pickFirsts += [
+            'lib/x86/libc++_shared.so',
+            'lib/x86_64/libc++_shared.so',
+            'lib/armeabi-v7a/libc++_shared.so',
+            'lib/arm64-v8a/libc++_shared.so'
+        ]
+    }
+      //  pickFirst 'lib/x86/libc++_shared.so'
+       // pickFirst 'lib/x86_64/libc++_shared.so'
+       // pickFirst 'lib/armeabi-v7a/libc++_shared.so'
+       // pickFirst 'lib/arm64-v8a/libc++_shared.so'
+    }
+
+    buildFeatures {
+        buildConfig true
+        viewBinding true
+
+    }
+}
+
+configurations.all {
+    resolutionStrategy {
+        force 'androidx.lifecycle:lifecycle-viewmodel:2.8.7'
+        force 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7'
+        force 'androidx.lifecycle:lifecycle-runtime:2.8.7'
+        force 'androidx.lifecycle:lifecycle-runtime-ktx:2.8.7'
+    }
+}
+
+dependencies {
+    implementation 'com.google.android.gms:play-services-location:21.0.1'
+
+    implementation("com.facebook.react:react-android")
+
+    // Local AARs
+implementation files('libs/pspwDmt.aar')
+implementation files('libs/pw_ekyc.aar')
+
+    // PayU SDK
+    implementation('in.payu:payu-checkout-pro:1.8.2') {
+        exclude group: 'org.json', module: 'json'
+        exclude group: 'com.payu.crashlogger', module: 'crashlogger'
+    }
+
+    // CredoPay SDK
+    implementation('in.credopay.payment.sdk:vm30-payment-sdk:3.0.20') {
+        exclude module: 'retrofit'
+    }
+
+    implementation 'com.squareup.retrofit2:converter-scalars:2.9.0'
+
+    // Firebase
+    implementation platform('com.google.firebase:firebase-bom:33.8.0')
+    implementation 'com.google.firebase:firebase-messaging'
+
+    // AndroidX
+    implementation "androidx.appcompat:appcompat:1.6.1"
+    implementation "androidx.core:core-splashscreen:1.0.1"
+    implementation "androidx.multidex:multidex:2.0.1"
+
+    implementation "androidx.startup:startup-runtime:1.1.1"
+
+    if (hermesEnabled.toBoolean()) {
+        implementation("com.facebook.react:hermes-android")
+    }
+}
+
+apply from: file("../../node_modules/@react-native-community/cli-platform-android/native_modules.gradle")
+applyNativeModulesAppBuildGradle(project)

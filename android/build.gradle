@@ -1,0 +1,44 @@
+buildscript {
+    ext {
+        buildToolsVersion = "35.0.0"
+        minSdkVersion = 24
+        compileSdkVersion = 34
+        targetSdkVersion = 34
+        ndkVersion = "26.1.10909125"
+        kotlinVersion = "1.9.24"
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath("com.android.tools.build:gradle:8.4.2")
+        classpath("com.facebook.react:react-native-gradle-plugin")
+        classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
+        classpath("com.google.gms:google-services:4.4.2")
+    }
+}
+
+allprojects {
+    repositories {
+        maven { url("$rootDir/../node_modules/react-native/android") }
+        maven { url("$rootDir/../node_modules/jsc-android/dist") }
+        
+        // YEH HAI LOCAL AAR FIX
+        flatDir {
+            dirs "$rootDir/app/libs"
+        }
+
+        maven {
+            credentials {
+        username project.findProperty("MAVEN_USERNAME") ?: ""
+        password project.findProperty("MAVEN_PASSWORD") ?: ""
+    }
+            url "https://mymavenrepo.com/repo/FrQdp1FhEvW3jjbX8Md4/"
+        }
+
+        google()
+        mavenCentral()
+        maven { url 'https://www.jitpack.io' }
+    }
+}

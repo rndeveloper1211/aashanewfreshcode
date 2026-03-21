@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "260883980540",
+    "project_id": "aircharge-da00f",
+    "storage_bucket": "aircharge-da00f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:260883980540:android:ec8eb31571a1e579efb779",
+        "android_client_info": {
+          "package_name": "com.digital2pay"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA6fXMrkEe_VN_2Z1ijHf5QHoaaMICAtZ4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

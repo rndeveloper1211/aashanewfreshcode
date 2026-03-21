@@ -1,0 +1,8 @@
+<resources>
+
+    <!-- PayU string fix (Android 12+) -->
+    <string name="payu_si_header_summary_end" formatted="false">
+        %1$s
+    </string>
+
+</resources>

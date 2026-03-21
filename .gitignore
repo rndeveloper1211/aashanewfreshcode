@@ -1,0 +1,16 @@
+node_modules/
+android/.gradle/
+android/build/
+android/app/build/
+android/.cxx/
+android/app/.cxx/
+ios/build/
+
+# Large / unwanted
+*.apk
+*.aab
+*.zip
+vendor/
+
+# misc
+*.log

@@ -1,0 +1,38 @@
+const fs = require('fs');
+const path = require('path');
+
+const LANG_DIR = './src/utils/languageUtils'; 
+const BASE_FILE = 'en.json';
+const OUTPUT_FILE = 'translation_sync_report.txt';
+
+function getSimpleKeys(obj) {
+    let keys = [];
+    for (let key in obj) { if (typeof obj[key] === 'string') keys.push(key); }
+    return keys;
+}
+
+let baseJson = JSON.parse(fs.readFileSync(path.join(LANG_DIR, BASE_FILE), 'utf8'));
+const baseKeys = getSimpleKeys(baseJson);
+let report = [];
+
+fs.readdirSync(LANG_DIR).filter(f => f.endsWith('.json') && f !== BASE_FILE && !f.includes('copy')).forEach(file => {
+    let targetKeys = getSimpleKeys(JSON.parse(fs.readFileSync(path.join(LANG_DIR, file), 'utf8')));
+    let missing = baseKeys.filter(bk => !targetKeys.some(tk => tk.toLowerCase() === bk.toLowerCase()));
+    if (missing.length > 0) {
+        report.push(`\n[MISSING IN ${file.toUpperCase()}]:`);
+        missing.forEach(m => report.push(` - ${m}`));
+    }
+});
+
+fs.writeFileSync(OUTPUT_FILE, report.join('\n'));
+console.log(`3. Sync Check Done. Check ${OUTPUT_FILE} for details.`);
+
+
+# 1. Pehle UI scan karein
+node find-hardcoded.js
+
+# 2. Phir code vs en.json check karein
+node check-missing-keys.js
+
+# 3. Phir English vs Other Languages check karein
+node sync-languages.js
