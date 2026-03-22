@@ -1,180 +1,260 @@
-import React, { useEffect, useState } from "react";
+import { translate } from "../../utils/languageUtils/I18n";
+import React, { useCallback, useEffect, useState } from "react";
 import {
   View,
   FlatList,
   Text,
   StyleSheet,
-  TouchableOpacity,
-  ActivityIndicator,
+  Platform,
+  StatusBar,
+  UIManager,
 } from "react-native";
+import SkeletonPlaceholder from "react-native-skeleton-placeholder";
 import useAxiosHook from "../../utils/network/AxiosClient";
 import { APP_URLS } from "../../utils/network/urls";
 import { useSelector } from "react-redux";
 import { hScale, wScale } from "../../utils/styles/dimensions";
 import AppBarSecond from "../drawer/headerAppbar/AppBarSecond";
-import Icon from "react-native-vector-icons/Ionicons";
 import DateRangePicker from "../../components/DateRange";
-import { colors, FontSize } from "../../utils/styles/theme";
 import NoDatafound from "../drawer/svgimgcomponents/Nodatafound";
 import DynamicButton from "../drawer/button/DynamicButton";
 import { RootState } from "../../reduxUtils/store";
-import { translate } from "../../utils/languageUtils/I18n";
 
-const Walletunloadreport = () => {
-  const { colorConfig, IsDealer } = useSelector(
-    (state: RootState) => state.userInfo,
+if (Platform.OS === "android") {
+  UIManager.setLayoutAnimationEnabledExperimental?.(true);
+}
+
+// ─── Status config ─────────────────────────────────────────────────────────────
+const getStatusCfg = (s: string) => {
+  const st = s?.toLowerCase();
+  if (["success", "done"].includes(st))    return { color: "#16A34A", bg: "#DCFCE7" };
+  if (["failed", "failure"].includes(st)) return { color: "#DC2626", bg: "#FEE2E2" };
+  if (["pending"].includes(st))           return { color: "#D97706", bg: "#FEF3C7" };
+  return                                         { color: "#2563EB", bg: "#DBEAFE" };
+};
+
+// ─── Skeleton Card ─────────────────────────────────────────────────────────────
+const SkeletonCard = ({ highlight }: { highlight: string }) => (
+  <SkeletonPlaceholder
+    borderRadius={16}
+    speed={1300}
+    backgroundColor="#F3F4F6"
+    highlightColor={highlight}
+  >
+    <SkeletonPlaceholder.Item
+      flexDirection="row"
+      alignItems="center"
+      backgroundColor="#fff"
+      borderRadius={16}
+      marginBottom={hScale(10)}
+      paddingVertical={hScale(14)}
+      paddingRight={wScale(14)}
+      overflow="hidden"
+    >
+      {/* Left accent bar */}
+      <SkeletonPlaceholder.Item width={4} height={hScale(96)} borderRadius={4} marginRight={wScale(12)} />
+      {/* Icon bubble */}
+      <SkeletonPlaceholder.Item width={wScale(44)} height={wScale(44)} borderRadius={12} marginRight={wScale(10)} />
+      {/* Middle */}
+      <SkeletonPlaceholder.Item flex={1}>
+        <SkeletonPlaceholder.Item width="60%" height={hScale(13)} borderRadius={6} />
+        <SkeletonPlaceholder.Item width="40%" height={hScale(11)} borderRadius={6} marginTop={hScale(6)} />
+        <SkeletonPlaceholder.Item flexDirection="row" marginTop={hScale(10)}>
+          <SkeletonPlaceholder.Item width={wScale(80)} height={hScale(11)} borderRadius={6} />
+          <SkeletonPlaceholder.Item width={wScale(70)} height={hScale(11)} borderRadius={6} marginLeft={wScale(12)} />
+        </SkeletonPlaceholder.Item>
+        <SkeletonPlaceholder.Item width="80%" height={hScale(22)} borderRadius={8} marginTop={hScale(10)} />
+      </SkeletonPlaceholder.Item>
+      {/* Right */}
+      <SkeletonPlaceholder.Item alignItems="flex-end" marginLeft={wScale(8)}>
+        <SkeletonPlaceholder.Item width={wScale(62)} height={hScale(15)} borderRadius={6} />
+        <SkeletonPlaceholder.Item width={wScale(54)} height={hScale(22)} borderRadius={20} marginTop={hScale(8)} />
+        <SkeletonPlaceholder.Item width={wScale(60)} height={hScale(26)} borderRadius={20} marginTop={hScale(12)} />
+      </SkeletonPlaceholder.Item>
+    </SkeletonPlaceholder.Item>
+  </SkeletonPlaceholder>
+);
+
+const SkeletonList = ({ highlight }: { highlight: string }) => (
+  <View style={{ paddingHorizontal: wScale(12), paddingTop: hScale(4) }}>
+    {[1, 2, 3, 4, 5].map((k) => <SkeletonCard key={k} highlight={highlight} />)}
+  </View>
+);
+
+// ─── Transaction Card ─────────────────────────────────────────────────────────
+const TxnCard = React.memo(({ item }: { item: any }) => {
+  const cfg = getStatusCfg(item.Status);
+
+  return (
+    <View style={[card.wrap, { borderLeftColor: cfg.color }]}>
+
+      {/* ── Top row: icon + bank account + date + amount ── */}
+      <View style={card.topRow}>
+        <View style={[card.iconWrap, { backgroundColor: cfg.bg }]}>
+          <Text style={{ fontSize: wScale(20) }}>👛</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={card.label}>{translate("Bank Account")}</Text>
+          <Text style={card.name} numberOfLines={1}>
+            {item.BankAccount === "" ? "....." : item.BankAccount || "—"}
+          </Text>
+          <Text style={card.sub}>{translate("Date")}: {item.RequestDate || "—"}</Text>
+        </View>
+        <View style={{ alignItems: "flex-end", gap: 4 }}>
+          <Text style={[card.amount, { color: cfg.color }]}>₹ {item.Amount}</Text>
+          <View style={[card.pill, { backgroundColor: cfg.bg }]}>
+            <Text style={[card.pillTxt, { color: cfg.color }]}>
+              {item.Status || "—"}
+            </Text>
+          </View>
+        </View>
+      </View>
+
+      <View style={card.divider} />
+
+      {/* ── Mid row: TransferType + BankRRN + Status ── */}
+      <View style={card.midRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={card.label}>{translate("TransferType")}</Text>
+          <Text style={[card.value, { textTransform: "uppercase" }]}>
+            {item.TransferType || "—"}
+          </Text>
+        </View>
+        <View style={{ flex: 1, alignItems: "center" }}>
+          <Text style={card.label}>{translate("Bank RRN")}</Text>
+          <Text style={card.value}>{item.BankRRN || "—"}</Text>
+        </View>
+        <View style={{ flex: 1, alignItems: "flex-end" }}>
+          <Text style={card.label}>{translate("Status")}</Text>
+          <Text style={[card.value, { color: cfg.color }]}>{item.Status || "—"}</Text>
+        </View>
+      </View>
+
+      <View style={card.divider} />
+
+      {/* ── Balance chips ── */}
+      <View style={card.balRow}>
+        {[
+          { l: translate("Pre Balance"), v: `₹ ${item.RemPre  ?? "0"}`,              c: "#1D4ED8", bg: "#EFF6FF" },
+          { l: translate("Pos Balance"), v: `₹ ${item.RemPost ?? "0"}`,              c: "#16A34A", bg: "#DCFCE7" },
+          { l: translate("Amount"),      v: `₹ ${item.Amount  ?? "0"}`,              c: cfg.color, bg: cfg.bg   },
+          { l: translate("Charge"),      v: `₹ ${item.ProcessingCharge ?? "0"}`,     c: "#D97706", bg: "#FEF3C7" },
+        ].map((b) => (
+          <View key={b.l} style={[card.balChip, { backgroundColor: b.bg }]}>
+            <Text style={[card.balAmt, { color: b.c }]}>{b.v}</Text>
+            <Text style={card.balLbl}>{b.l}</Text>
+          </View>
+        ))}
+      </View>
+    </View>
   );
-  const color1 = `${colorConfig.secondaryColor}20`;
-  const [transactions, setTransactions] = useState([]);
-  const [present, setPresent] = useState(10);
-  const [loading, setLoading] = useState(false);
-  const { post, get } = useAxiosHook();
-  const { userId } = useSelector((state) => state.userInfo);
-  const [selectedDate, setSelectedDate] = useState({
-    from: new Date().toISOString().split("T")[0],
-    to: new Date().toISOString().split("T")[0],
-  });
+});
+
+const card = StyleSheet.create({
+  wrap:     { backgroundColor: "#fff", borderRadius: 16, marginBottom: hScale(10), paddingHorizontal: wScale(14), paddingVertical: hScale(12), borderLeftWidth: 4, elevation: 2, shadowColor: "#000", shadowOffset: { width: 0, height: 1 }, shadowOpacity: 0.06, shadowRadius: 5 },
+  topRow:   { flexDirection: "row", alignItems: "flex-start", marginBottom: hScale(6), gap: wScale(10) },
+  iconWrap: { width: wScale(44), height: wScale(44), borderRadius: 12, justifyContent: "center", alignItems: "center" },
+  label:    { fontSize: wScale(10), color: "#9CA3AF", fontWeight: "600", marginBottom: 2 },
+  name:     { fontSize: wScale(14), fontWeight: "700", color: "#111827", marginBottom: 2 },
+  sub:      { fontSize: wScale(12), color: "#6B7280" },
+  amount:   { fontSize: wScale(16), fontWeight: "800" },
+  pill:     { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  pillTxt:  { fontSize: wScale(10), fontWeight: "800", letterSpacing: 0.3 },
+  midRow:   { flexDirection: "row", justifyContent: "space-between", marginBottom: hScale(6) },
+  value:    { fontSize: wScale(12), color: "#374151", fontWeight: "700" },
+  divider:  { height: 1, backgroundColor: "#F3F4F6", marginVertical: hScale(8) },
+  balRow:   { flexDirection: "row", gap: wScale(4) },
+  balChip:  { flex: 1, borderRadius: 10, paddingVertical: hScale(7), alignItems: "center" },
+  balAmt:   { fontSize: wScale(11), fontWeight: "800" },
+  balLbl:   { fontSize: wScale(9), color: "#6B7280", marginTop: 2, fontWeight: "600", textAlign: "center" },
+});
+
+// ─── Main Screen ──────────────────────────────────────────────────────────────
+const Walletunloadreport = () => {
+  const { colorConfig, IsDealer } = useSelector((state: RootState) => state.userInfo);
+  const { get }                   = useAxiosHook();
+
+  const primary          = colorConfig.primaryColor ?? colorConfig.secondaryColor ?? "#1D4ED8";
+  const shimmerHighlight = primary + "30";
+
+  const [transactions,   setTransactions]   = useState<any[]>([]);
+  const [loading,        setLoading]        = useState(false);
+  const [present,        setPresent]        = useState(10);
   const [selectedStatus, setSelectedStatus] = useState("ALL");
+  const [selectedDate,   setSelectedDate]   = useState({
+    from: new Date().toISOString().split("T")[0],
+    to:   new Date().toISOString().split("T")[0],
+  });
+
   useEffect(() => {
     recentTransactions(selectedDate.from, selectedDate.to, selectedStatus);
   }, []);
 
-  const recentTransactions = async (from, to, status) => {
+  const recentTransactions = useCallback(async (
+    from: string, to: string, status: string
+  ) => {
+    setLoading(true);
     try {
-      setLoading(true);
-      const formattedFrom = new Date(from).toISOString().split("T")[0];
-      const formattedTo = new Date(to).toISOString().split("T")[0];
-      const url = `${APP_URLS.WalletUnloadReport}txt_frm_date=${formattedFrom}&txt_to_date=${formattedTo}`;
-      console.log(url);
+      const fmt = (d: string) => new Date(d).toISOString().split("T")[0];
+      const url = `${APP_URLS.WalletUnloadReport}txt_frm_date=${fmt(from)}&txt_to_date=${fmt(to)}`;
       const response = await get({ url });
-
-      if (response.status === "SUCCESS") {
-        const transactionsData = response["Response"] || [];
-        setTransactions(transactionsData);
+      if (response?.status === "SUCCESS") {
+        setTransactions(response.Response ?? []);
       } else {
         setTransactions([]);
       }
-
-      console.log("walletunloadreport", response);
     } catch (error) {
       console.error("Error fetching transactions:", error);
       setTransactions([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [get]);
 
-  const handleLoadMore = () => {
-    setPresent((prev) => prev + 10);
-  };
-
-  const TransactionDetails = ({ item }) => {
-    return (
-      <View
-        style={[
-          styles.card,
-          {
-            backgroundColor: color1,
-            borderColor: colorConfig.secondaryColor,
-          },
-        ]}
-      >
-        <View style={styles.rowview}>
-          <View>
-            <Text style={styles.timetex}>{translate("Bank Account")}</Text>
-            <Text style={styles.amounttex}>
-              {item.BankAccount === "" ? "....." : item.BankAccount}
-            </Text>
-          </View>
-          <View>
-            <Text style={[styles.timetex, styles.textrit]}>
-              {translate("Date")}
-            </Text>
-            <Text
-              style={[styles.amounttex, styles.textrit]}
-            >{`${item.RequestDate}`}</Text>
-          </View>
-        </View>
-        <View style={[styles.border]} />
-        <View style={[styles.rowview]}>
-          <View>
-            <Text style={styles.timetex}>{translate("TransferType")}</Text>
-            <Text style={[styles.amounttex, { textTransform: "uppercase" }]}>
-              {item.TransferType ? item.TransferType : "Type..."}
-            </Text>
-          </View>
-          <View>
-            <Text style={styles.timetex}>{translate("Bank RRN")}</Text>
-            <Text style={[styles.amounttex]}>
-              {item.BankRRN ? item.BankRRN : "BankRRN..."}
-            </Text>
-          </View>
-          <View>
-            <Text style={[styles.timetex, styles.textrit]}>
-              {translate("Status")}
-            </Text>
-            <Text style={[styles.amounttex, styles.textrit]}>
-              {item.Status ? item.Status : "..."}
-            </Text>
-          </View>
-        </View>
-        <View style={[styles.border]} />
-        <View style={[styles.rowview]}>
-          <View style={styles.blance}>
-            <Text style={[styles.timetex]}>{translate("Pre Balance")}</Text>
-            <Text style={[styles.amounttex]}>₹ {`${item.RemPre}`}</Text>
-          </View>
-          <View style={[styles.blance]}>
-            <Text style={[styles.timetex, { textAlign: "center" }]}>
-              translate("Pos Balance")
-            </Text>
-            <Text style={[styles.amounttex, { textAlign: "center" }]}>
-              ₹ {`${item.RemPre}`}
-            </Text>
-          </View>
-          <View style={styles.blance}>
-            <Text style={[styles.timetex, { textAlign: "center" }]}>
-              translate("Amount")
-            </Text>
-            <Text style={[styles.amounttex, { textAlign: "center" }]}>
-              ₹ {`${item.Amount}`}
-            </Text>
-          </View>
-          <View style={[styles.blance, { borderRightWidth: 0 }]}>
-            <Text style={[styles.timetex, styles.textrit]}>{translate("Charge")}</Text>
-            <Text style={[styles.amounttex, styles.textrit]}>
-              ₹ {`${item.ProcessingCharge}`}
-            </Text>
-          </View>
-        </View>
-      </View>
-    );
-  };
+  const renderItem = useCallback(({ item }: { item: any }) => (
+    <TxnCard item={item} />
+  ), []);
 
   return (
-    <View style={styles.main}>
-      <AppBarSecond title={"Wallet Unload History"} />
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <AppBarSecond title="Wallet Unload History" />
+
       <DateRangePicker
         isshowRetailer={IsDealer}
-        onDateSelected={(from, to) => setSelectedDate({ from, to })}
-        SearchPress={(from, to, status) => recentTransactions(from, to, status)}
+        onDateSelected={(from: string, to: string) => setSelectedDate({ from, to })}
+        SearchPress={(from: string, to: string, status: string) =>
+          recentTransactions(from, to, status)
+        }
         status={selectedStatus}
         setStatus={setSelectedStatus}
         isStShow={true}
       />
-      <View style={styles.container}>
+
+      <View style={styles.body}>
         {loading ? (
-          <ActivityIndicator size="large" color="#4CAF50" />
+          <SkeletonList highlight={shimmerHighlight} />
         ) : transactions.length === 0 ? (
-          <NoDatafound />
+          <View style={styles.empty}>
+            <NoDatafound />
+          </View>
         ) : (
           <FlatList
             data={transactions.slice(0, present)}
-            renderItem={({ item }) => <TransactionDetails item={item} />}
-            keyExtractor={(item, index) => index.toString()}
+            renderItem={renderItem}
+            keyExtractor={(_, i) => String(i)}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.list}
+            initialNumToRender={12}
+            maxToRenderPerBatch={15}
+            windowSize={10}
+            removeClippedSubviews
             ListFooterComponent={
               transactions.length > present ? (
-                <DynamicButton onPress={handleLoadMore} title={"Load More"} />
+                <DynamicButton
+                  onPress={() => setPresent((p) => p + 10)}
+                  title="Load More"
+                />
               ) : null
             }
           />
@@ -184,53 +264,11 @@ const Walletunloadreport = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  main: { flex: 1 },
-  container: {
-    flex: 1,
-    paddingHorizontal: wScale(10),
-    paddingVertical: hScale(20),
-  },
-  card: {
-    marginBottom: hScale(10),
-    borderWidth: wScale(0.7),
-    borderRadius: 10,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
-    shadowRadius: 4,
-    paddingHorizontal: wScale(10),
-    paddingVertical: hScale(8),
-  },
-  rowview: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  border: {
-    borderBottomWidth: wScale(0.7),
-    borderColor: "#000",
-    marginVertical: hScale(4),
-  },
-  amounttex: {
-    fontSize: wScale(12),
-    color: "#000",
-    fontWeight: "bold",
-  },
-
-  timetex: {
-    fontSize: FontSize.regular,
-    color: "#000",
-  },
-
-  textrit: {
-    textAlign: "right",
-  },
-
-  blance: {
-    flex: 1,
-    borderRightWidth: wScale(0.7),
-    borderColor: colors.black75,
-  },
-});
 export default Walletunloadreport;
+
+const styles = StyleSheet.create({
+  root:  { flex: 1, backgroundColor: "#F9FAFB" },
+  body:  { flex: 1, paddingTop: hScale(4) },
+  list:  { paddingHorizontal: wScale(12), paddingBottom: hScale(30), paddingTop: hScale(4) },
+  empty: { flex: 1, justifyContent: "center", alignItems: "center" },
+});

@@ -1,153 +1,355 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import {
-  View,
-  FlatList,
-  Text,
-  StyleSheet,
-  ActivityIndicator,
-  TouchableOpacity,
-  Image,
+  View, FlatList, Text, StyleSheet,
+  TouchableOpacity, Image, StatusBar,
 } from "react-native";
+import SkeletonPlaceholder from "react-native-skeleton-placeholder";
 import useAxiosHook from "../../utils/network/AxiosClient";
 import { APP_URLS } from "../../utils/network/urls";
 import { useSelector } from "react-redux";
 import { hScale, wScale } from "../../utils/styles/dimensions";
 import { useNavigation } from "@react-navigation/native";
-import { colors } from "../../utils/styles/theme";
 import { RootState } from "../../reduxUtils/store";
 import DateRangePicker from "../../components/DateRange";
 import NoDatafound from "../drawer/svgimgcomponents/Nodatafound";
 import AppBarSecond from "../drawer/headerAppbar/AppBarSecond";
-import PDFGenerator from "../../components/Pdf_Print";
 
+// ─── Status config ────────────────────────────────────────────────────────────
+const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
+  SUCCESS: { color: '#16A34A', bg: '#DCFCE7', label: 'Success' },
+  FAILED:  { color: '#DC2626', bg: '#FEE2E2', label: 'Failed'  },
+  PENDING: { color: '#D97706', bg: '#FEF3C7', label: 'Pending' },
+  REFUND:  { color: '#7C3AED', bg: '#EDE9FE', label: 'Refund'  },
+};
+
+const getStatus = (s: string) => {
+  if (s === 'SUCCESS')    return STATUS_CONFIG.SUCCESS;
+  if (s === 'FAILED')     return STATUS_CONFIG.FAILED;
+  if (s?.startsWith('R')) return STATUS_CONFIG.REFUND;
+  return                         STATUS_CONFIG.PENDING;
+};
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+type TxnItem = {
+  Operator_name:   string;
+  Recharge_number: string;
+  Reqesttime:      string;
+  Recharge_amount: string;
+  Status:          string;
+  hasThumbnail?:   boolean;
+  thumbnailPath?:  string;
+  Debitamount?:    string;
+};
+
+// ─── Skeleton card ────────────────────────────────────────────────────────────
+const SkeletonCard = ({ highlightColor }: { highlightColor: string }) => (
+  <SkeletonPlaceholder
+    borderRadius={16}
+    speed={1200}
+    backgroundColor="#F3F4F6"
+    highlightColor={highlightColor}
+  >
+    <SkeletonPlaceholder.Item
+      flexDirection="row"
+      alignItems="center"
+      backgroundColor="#fff"
+      borderRadius={16}
+      marginBottom={hScale(10)}
+      paddingVertical={hScale(12)}
+      paddingRight={wScale(14)}
+      overflow="hidden"
+    >
+      {/* Accent bar */}
+      <SkeletonPlaceholder.Item
+        width={4}
+        height={hScale(68)}
+        borderRadius={4}
+        marginRight={wScale(12)}
+      />
+
+      {/* Avatar */}
+      <SkeletonPlaceholder.Item
+        width={wScale(44)}
+        height={wScale(44)}
+        borderRadius={12}
+        marginRight={wScale(10)}
+      />
+
+      {/* Middle: operator + number + time */}
+      <SkeletonPlaceholder.Item flex={1}>
+        <SkeletonPlaceholder.Item
+          width="58%"
+          height={hScale(13)}
+          borderRadius={6}
+        />
+        <SkeletonPlaceholder.Item
+          width="42%"
+          height={hScale(12)}
+          borderRadius={6}
+          marginTop={hScale(7)}
+        />
+        <SkeletonPlaceholder.Item
+          width="28%"
+          height={hScale(10)}
+          borderRadius={6}
+          marginTop={hScale(6)}
+        />
+      </SkeletonPlaceholder.Item>
+
+      {/* Right: amount + pill */}
+      <SkeletonPlaceholder.Item alignItems="flex-end">
+        <SkeletonPlaceholder.Item
+          width={wScale(62)}
+          height={hScale(14)}
+          borderRadius={6}
+        />
+        <SkeletonPlaceholder.Item
+          width={wScale(52)}
+          height={hScale(22)}
+          borderRadius={20}
+          marginTop={hScale(8)}
+        />
+      </SkeletonPlaceholder.Item>
+    </SkeletonPlaceholder.Item>
+  </SkeletonPlaceholder>
+);
+
+// ─── Summary strip ────────────────────────────────────────────────────────────
+const SummaryStrip = ({
+  transactions,
+  primaryColor,
+}: {
+  transactions: TxnItem[];
+  primaryColor: string;
+}) => {
+  const stats = useMemo(() => {
+    const success = transactions.filter(t => t.Status === 'SUCCESS');
+    const total   = success.reduce((s, t) => s + parseFloat(t.Recharge_amount || '0'), 0);
+    return {
+      count:   transactions.length,
+      success: success.length,
+      failed:  transactions.filter(t => t.Status === 'FAILED').length,
+      total:   total.toFixed(0),
+    };
+  }, [transactions]);
+
+  const chips = [
+    { label: 'Total',       val: stats.count,   color: '#374151'   },
+    { label: 'Success',     val: stats.success, color: '#16A34A'   },
+    { label: 'Failed',      val: stats.failed,  color: '#DC2626'   },
+    { label: 'Success Amt', val: `₹${stats.total}`, color: primaryColor },
+  ];
+
+  return (
+    <View style={[strip.wrap, { borderColor: primaryColor + '25' }]}>
+      {chips.map((chip, i) => (
+        <React.Fragment key={chip.label}>
+          <View style={strip.chip}>
+            <Text style={[strip.num, { color: chip.color }]}>{chip.val}</Text>
+            <Text style={strip.lbl}>{chip.label}</Text>
+          </View>
+          {i < chips.length - 1 && <View style={strip.divider} />}
+        </React.Fragment>
+      ))}
+    </View>
+  );
+};
+
+const strip = StyleSheet.create({
+  wrap: {
+    flexDirection:    'row',
+    backgroundColor:  '#fff',
+    marginHorizontal:  wScale(12),
+    marginBottom:      hScale(10),
+    borderRadius:      16,
+    paddingVertical:   hScale(12),
+    borderWidth:       1,
+    elevation: 1,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05, shadowRadius: 4,
+  },
+  chip:    { flex: 1, alignItems: 'center' },
+  num:     { fontSize: wScale(16), fontWeight: '800', color: '#111827' },
+  lbl:     { fontSize: wScale(10), color: '#9CA3AF', marginTop: 2, fontWeight: '600' },
+  divider: { width: 1, backgroundColor: '#F3F4F6', marginVertical: 4 },
+});
+
+// ─── Transaction card ─────────────────────────────────────────────────────────
+const TxnCard = React.memo(({
+  item, onPress, accentColor,
+}: {
+  item: TxnItem;
+  onPress: () => void;
+  accentColor: string;
+}) => {
+  const st       = getStatus(item.Status);
+  const initials = item.Operator_name?.slice(0, 2).toUpperCase() || '??';
+
+  return (
+    <TouchableOpacity
+      style={card.wrap}
+      onPress={onPress}
+      activeOpacity={0.82}
+    >
+      {/* Left accent bar */}
+      <View style={[card.accentBar, { backgroundColor: st.color }]} />
+
+      {/* Avatar */}
+      {item.hasThumbnail ? (
+        <Image source={{ uri: item.thumbnailPath }} style={card.avatar} />
+      ) : (
+        <View style={[card.avatarFallback, { backgroundColor: st.bg }]}>
+          <Text style={[card.avatarText, { color: st.color }]}>{initials}</Text>
+        </View>
+      )}
+
+      {/* Middle */}
+      <View style={card.mid}>
+        <Text style={card.operator} numberOfLines={1}>{item.Operator_name}</Text>
+        <Text style={card.number}>{item.Recharge_number}</Text>
+        <Text style={[card.time, { color: accentColor }]}>{item.Reqesttime}</Text>
+      </View>
+
+      {/* Right */}
+      <View style={card.right}>
+        <Text style={card.amount}>₹ {item.Recharge_amount}</Text>
+        <View style={[card.pill, { backgroundColor: st.bg }]}>
+          <Text style={[card.pillText, { color: st.color }]}>{st.label}</Text>
+        </View>
+      </View>
+    </TouchableOpacity>
+  );
+});
+
+const card = StyleSheet.create({
+  wrap: {
+    flexDirection:  'row',
+    alignItems:     'center',
+    backgroundColor: '#fff',
+    borderRadius:    16,
+    marginBottom:    hScale(8),
+    marginHorizontal: wScale(12),
+    paddingRight:    wScale(14),
+    paddingVertical: hScale(12),
+    elevation: 2,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06, shadowRadius: 4,
+    overflow: 'hidden',
+  },
+  accentBar:      { width: 4, alignSelf: 'stretch', borderTopLeftRadius: 16, borderBottomLeftRadius: 16, marginRight: wScale(12) },
+  avatar:         { width: wScale(44), height: wScale(44), borderRadius: 12, marginRight: wScale(10) },
+  avatarFallback: { width: wScale(44), height: wScale(44), borderRadius: 12, justifyContent: 'center', alignItems: 'center', marginRight: wScale(10) },
+  avatarText:     { fontSize: wScale(15), fontWeight: '800' },
+  mid:            { flex: 1 },
+  operator:       { fontSize: wScale(14), fontWeight: '700', color: '#111827', marginBottom: 2 },
+  number:         { fontSize: wScale(13), color: '#4B5563', marginBottom: 2 },
+  time:           { fontSize: wScale(11), fontWeight: '600' },
+  right:          { alignItems: 'flex-end', gap: 6 },
+  amount:         { fontSize: wScale(15), fontWeight: '800', color: '#111827' },
+  pill:           { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 20 },
+  pillText:       { fontSize: wScale(10), fontWeight: '800', letterSpacing: 0.3 },
+});
+
+// ─── Main screen ──────────────────────────────────────────────────────────────
 const RechargeUtilitisR = () => {
-  const { colorConfig } = useSelector((state: RootState) => state.userInfo);
-  const [transactions, setTransactions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedDate, setSelectedDate] = useState({
-    from: new Date().toISOString().split("T")[0],
-    to: new Date().toISOString().split("T")[0],
+  const { colorConfig }  = useSelector((s: RootState) => s.userInfo);
+  const { userId }       = useSelector((s: any) => s.userInfo);
+  const navigation       = useNavigation<any>();
+  const { get }          = useAxiosHook();
+  const primaryColor     = colorConfig.primaryColor;
+  // Shimmer highlight color derived from primary
+  const shimmerHighlight = primaryColor + '30';
+
+  const [transactions,   setTransactions]   = useState<TxnItem[]>([]);
+  const [loading,        setLoading]        = useState(true);
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
+  const [selectedDate,   setSelectedDate]   = useState({
+    from: new Date().toISOString().split('T')[0],
+    to:   new Date().toISOString().split('T')[0],
   });
-  const [selectedStatus, setSelectedStatus] = useState("ALL");
 
-  const { get } = useAxiosHook();
-  const { userId } = useSelector((state) => state.userInfo);
-  const navigation = useNavigation();
-
-  const handlePress = (item) => {
-    console.log(item);
-    navigation.navigate("RechargeHistory", { ...item });
-    //navigation.navigate('PDFGenerator', { ...item });
-  };
-
-  const recentTransactions = async (from, to, status) => {
+  // ── Fetch ──────────────────────────────────────────────────────────────────
+  const fetchTransactions = useCallback(async (
+    from: string, to: string, status: string,
+  ) => {
     setLoading(true);
     try {
-      const formattedFrom = new Date(from).toISOString().split("T")[0];
-      const formattedTo = new Date(to).toISOString().split("T")[0];
-      const url = `${APP_URLS.recenttransaction}pageindex=1&pagesize=500&retailerid=${userId}&fromdate=${formattedFrom}&todate=${formattedTo}&role=Retailer&rechargeNo=ALL&status=${status}&OperatorName=ALL&portno=ALL`;
-
-      const response = await get({ url });
-      console.log(url, "++++++++++url");
-      setTransactions(response);
-    } catch (error) {
-      console.error(error);
+      const f   = new Date(from).toISOString().split('T')[0];
+      const t   = new Date(to).toISOString().split('T')[0];
+      const url = `${APP_URLS.recenttransaction}pageindex=1&pagesize=500&retailerid=${userId}&fromdate=${f}&todate=${t}&role=Retailer&rechargeNo=ALL&status=${status}&OperatorName=ALL&portno=ALL`;
+      const data = await get({ url });
+      setTransactions(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Fetch error:', err);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [userId, get]);
 
   useEffect(() => {
-    recentTransactions(selectedDate.from, selectedDate.to, selectedStatus);
+    fetchTransactions(selectedDate.from, selectedDate.to, selectedStatus);
   }, [selectedDate, selectedStatus]);
 
-  const renderItem = useCallback(
-    ({ item }) => (
-      <TouchableOpacity
-        style={styles.transactionItem}
-        onPress={() => handlePress(item)}
-      >
-        <View style={styles.leftcoloum}>
-          <View style={styles.textimg}>
-            {item.hasThumbnail ? (
-              <Image
-                source={{ uri: item.thumbnailPath }}
-                style={styles.contactImage}
-              />
-            ) : (
-              <View style={styles.avatarCircle}>
-                <Text style={styles.avatarText}>
-                  {item.Operator_name?.charAt(0) || "?"}
-                </Text>
-              </View>
-            )}
-            <View>
-              <Text style={styles.opretor}>{item.Operator_name}</Text>
-              <Text style={styles.number}>{item.Recharge_number}</Text>
-            </View>
-          </View>
-          <Text style={[styles.opretor, { color: colorConfig.secondaryColor }]}>
-            {item.Reqesttime}
-          </Text>
-        </View>
-        <View style={styles.rightcoloum}>
-          <Text style={styles.number}>₹ {item.Recharge_amount}</Text>
-          <Text
-            style={[
-              styles.successtext,
-              {
-                color:
-                  item.Status === "FAILED"
-                    ? "red"
-                    : item.Status === "SUCCESS"
-                      ? "green"
-                      : item.Status.startsWith("R")
-                        ? "blue"
-                        : "#d9a20b",
-              },
-            ]}
-          >
-            {item.Status}
-          </Text>
-        </View>
-      </TouchableOpacity>
-    ),
-    [colorConfig.secondaryColor],
-  );
+  // ── Render item ───────────────────────────────────────────────────────────
+  const renderItem = useCallback(({ item }: { item: TxnItem }) => (
+    <TxnCard
+      item={item}
+      accentColor={colorConfig.secondaryColor}
+      onPress={() => navigation.navigate('RechargeHistory', { ...item })}
+    />
+  ), [colorConfig.secondaryColor]);
 
+  // ── List header (summary strip) ───────────────────────────────────────────
+  const ListHeader = useMemo(() => (
+    !loading && transactions.length > 0
+      ? <SummaryStrip transactions={transactions} primaryColor={primaryColor} />
+      : null
+  ), [loading, transactions, primaryColor]);
+
+  // ── Render ────────────────────────────────────────────────────────────────
   return (
-    <View style={styles.main}>
-      <AppBarSecond title={"Recharge History"} />
+    <View style={styles.root}>
+      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+      <AppBarSecond title="Recharge History" />
 
       <DateRangePicker
-        onDateSelected={(from, to) => {
-          setSelectedDate({ from, to });
-        }}
-        SearchPress={(from, to, status) => {
-          recentTransactions(from, to, status); // Pass status here
-        }}
-        status={selectedStatus} // Pass the current status
+        onDateSelected={(from, to) => setSelectedDate({ from, to })}
+        SearchPress={(from, to, status) => fetchTransactions(from, to, status)}
+        status={selectedStatus}
         setStatus={setSelectedStatus}
-        isStShow={true}
+        isStShow
         isshowRetailer={false}
-        retailerID={(id) => {
-          console.log(id);
-        }}
-
-        // Pass the function to update status
+        retailerID={(id: string) => console.log(id)}
       />
 
-      <View style={styles.container}>
+      <View style={styles.body}>
         {loading ? (
-          <ActivityIndicator size="large" color={colors.primary} />
+          <View style={styles.skeletonWrap}>
+            {[...Array(6)].map((_, i) => (
+              <SkeletonCard key={i} highlightColor={shimmerHighlight} />
+            ))}
+          </View>
         ) : transactions.length === 0 ? (
-          <NoDatafound />
+          <View style={styles.emptyWrap}>
+            <NoDatafound />
+            <Text style={styles.emptyTitle}>No transactions found</Text>
+            <Text style={styles.emptySub}>
+              Try adjusting the date range or status filter.
+            </Text>
+          </View>
         ) : (
           <FlatList
             data={transactions}
             renderItem={renderItem}
-            keyExtractor={(item, index) => index.toString()}
+            keyExtractor={(_, i) => i.toString()}
+            ListHeaderComponent={ListHeader}
             showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.list}
+            initialNumToRender={15}
+            maxToRenderPerBatch={20}
+            windowSize={10}
+            removeClippedSubviews
           />
         )}
       </View>
@@ -155,56 +357,16 @@ const RechargeUtilitisR = () => {
   );
 };
 
-const styles = StyleSheet.create({
-  main: { flex: 1 },
-  container: {
-    flex: 1,
-    paddingHorizontal: wScale(10),
-    paddingVertical: hScale(20),
-  },
-  transactionItem: {
-    backgroundColor: "#fff",
-    borderRadius: wScale(15),
-    marginBottom: hScale(10),
-    paddingHorizontal: wScale(10),
-    paddingVertical: hScale(15),
-    borderWidth: wScale(0.5),
-    borderColor: colors.black_01,
-    elevation: 2,
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  number: {
-    color: "#000",
-    fontSize: wScale(20),
-    paddingBottom: hScale(5),
-    fontWeight: "bold",
-  },
-  successtext: {
-    fontSize: wScale(15),
-    paddingBottom: hScale(5),
-    fontWeight: "bold",
-  },
-  leftcoloum: {},
-  textimg: { flexDirection: "row", alignItems: "center" },
-  rightcoloum: { alignItems: "flex-end", justifyContent: "center" },
-  opretor: { color: "#000", fontSize: wScale(16), paddingBottom: hScale(5) },
-  avatarCircle: {
-    width: wScale(48),
-    height: wScale(48),
-    borderRadius: wScale(17),
-    backgroundColor: "#f0f0f0",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: wScale(10),
-  },
-  avatarText: { fontSize: wScale(30), color: "#333" },
-  contactImage: {
-    width: wScale(45),
-    height: wScale(45),
-    borderRadius: 25,
-    marginRight: wScale(10),
-  },
-});
-
 export default RechargeUtilitisR;
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  root:        { flex: 1, backgroundColor: '#F9FAFB' },
+  body:        { flex: 1, paddingTop: hScale(10) },
+  list:        { paddingBottom: hScale(30), paddingTop: hScale(4) },
+  skeletonWrap:{ paddingHorizontal: wScale(12), paddingTop: hScale(4) },
+
+  emptyWrap:   { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: wScale(30) },
+  emptyTitle:  { fontSize: wScale(16), fontWeight: '700', color: '#374151', marginTop: hScale(16), textAlign: 'center' },
+  emptySub:    { fontSize: wScale(13), color: '#9CA3AF', marginTop: 6, textAlign: 'center', lineHeight: 20 },
+});

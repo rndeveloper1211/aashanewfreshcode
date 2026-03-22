@@ -435,13 +435,11 @@ console.log(cardnumberORUID);
 
   } finally {
 
-    //setIsLoading(false);
+    setIsLoading(false);
 
   }
 };
 const saveFaceResponse = async (data) => {
-
-    return
   try {
 
     // Indian Time

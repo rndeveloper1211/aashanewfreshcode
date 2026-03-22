@@ -36,7 +36,7 @@ const enum TRANSACTION_TYPE {
 
 const MicroatmTabScreen = () => {
   const { colorConfig } = useSelector((state: RootState) => state.userInfo);
-  const color1 = `${colorConfig.primaryColor}20`;
+  const color1 = `${colorConfig.primaryColor}80`;
   const navigation = useNavigation<any>();
   const colorScheme = useColorScheme();
   const [isNewLogin, setIsNewLogin] = useState(false);

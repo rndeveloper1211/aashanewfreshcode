@@ -1100,6 +1100,7 @@ const AppNavigator = () => {
         component={MyExpense}
         options={{ headerShown: false }}
       />
+          
     </Stack.Navigator>
   );
 };

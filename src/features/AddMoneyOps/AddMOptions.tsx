@@ -971,6 +971,17 @@ const AddMoneyOptions = ({ route }) => {
     setIntentLoad(true); // start loading
 
     try {
+
+      const selfURL = `${APP_URLS.selfupiintent}`;
+
+      const self = await post({ url: selfURL })
+
+      console.log(self)
+      if (!self.status) {
+        ToastAndroid.show(self.msg || '', ToastAndroid.BOTTOM)
+        return
+      }
+
       const response = await post({
         url: `${APP_URLS.VastbazzarUPIQRGenerate}${amnt}`,
       });

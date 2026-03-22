@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
-import { TextInput, View, Animated, StyleSheet } from "react-native";
+import { TextInput, View, Animated, StyleSheet, TouchableWithoutFeedback } from "react-native";
 import { hScale, wScale } from "../../../utils/styles/dimensions";
 import { translate } from "../../../utils/languageUtils/I18n";
 
@@ -12,32 +12,30 @@ const FlotingInput = ({
   ...props
 }) => {
   const value = props.value;
+  const inputRef = useRef(null); // ✅ TextInput ka ref
 
-  // चेक करें कि वैल्यू है या नहीं (0 को भी वैल्यू माना जाए)
   const hasValue = value !== undefined && value !== null && value.toString().length > 0;
-  
   const [isFocused, setIsFocused] = useState(autoFocus || hasValue);
 
-  // एनीमेशन वैल्यू: अगर वैल्यू है तो 1 (ऊपर), नहीं तो 0 (नीचे)
   const animatedFocused = useRef(new Animated.Value(hasValue || autoFocus ? 1 : 0)).current;
 
   useEffect(() => {
-    // InteractionManager हटा दिया ताकि रिस्पॉन्स तुरंत मिले
     Animated.timing(animatedFocused, {
       toValue: isFocused || hasValue ? 1 : 0,
       duration: 150,
-      useNativeDriver: false, // CRITICAL: top, fontSize के लिए false ही रखना पड़ेगा
+      useNativeDriver: false,
     }).start();
   }, [isFocused, hasValue]);
 
-  const handleFocus = () => {
-    setIsFocused(true);
-  };
+  const handleFocus = () => setIsFocused(true);
 
   const handleBlur = () => {
-    if (!hasValue) {
-      setIsFocused(false);
-    }
+    if (!hasValue) setIsFocused(false);
+  };
+
+  // ✅ Poore container pe tap karne par input focus ho
+  const handleContainerPress = () => {
+    inputRef.current?.focus();
   };
 
   const labelStyle = {
@@ -58,10 +56,9 @@ const FlotingInput = ({
     }),
     backgroundColor: animatedFocused.interpolate({
       inputRange: [0, 1],
-      outputRange: ["transparent", "white"], // rgba को सरल बनाया ताकि फ्लिकर न हो
+      outputRange: ["transparent", "white"],
     }),
     paddingHorizontal: wScale(2),
-    // height एनीमेशन लेआउट बिगाड़ सकता है, इसे फिक्स्ड रखना बेहतर है अगर दिक्कत आए
     height: animatedFocused.interpolate({
       inputRange: [0, 1],
       outputRange: [hScale(48), hScale(18)],
@@ -71,27 +68,31 @@ const FlotingInput = ({
   };
 
   return (
-    <View style={styles.main}>
-      <Animated.Text
-        numberOfLines={1}
-        ellipsizeMode="tail"
-        style={[labelStyle, labelinputstyle]}
-        pointerEvents="none" // ताकि लेबल पर क्लिक करने पर भी इनपुट फोकस हो
-      >
-        {translate(label)}
-      </Animated.Text>
+    // ✅ TouchableWithoutFeedback poore area ko tappable banata hai
+    <TouchableWithoutFeedback onPress={handleContainerPress}>
+      <View style={styles.main}>
+        <Animated.Text
+          numberOfLines={1}
+          ellipsizeMode="tail"
+          style={[labelStyle, labelinputstyle]}
+          // ✅ pointerEvents hata diya — ab TouchableWithoutFeedback handle karega
+        >
+          {translate(label)}
+        </Animated.Text>
 
-      <TextInput
-        {...props}
-        style={[styles.input, inputstyle]}
-        onFocus={handleFocus}
-        onBlur={handleBlur}
-        onChangeText={onChangeTextCallback}
-        autoFocus={autoFocus}
-        placeholder="" // Floating label के साथ placeholder खाली रखें
-        cursorColor="#000"
-      />
-    </View>
+        <TextInput
+          {...props}
+          ref={inputRef} // ✅ ref attach kiya
+          style={[styles.input, inputstyle]}
+          onFocus={handleFocus}
+          onBlur={handleBlur}
+          onChangeText={onChangeTextCallback}
+          autoFocus={autoFocus}
+          placeholder=""
+          cursorColor="#000"
+        />
+      </View>
+    </TouchableWithoutFeedback>
   );
 };
 
