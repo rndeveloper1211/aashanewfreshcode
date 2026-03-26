@@ -1,4 +1,3 @@
-import { translate } from "../../utils/languageUtils/I18n";
 import React, { useCallback, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, Button, ScrollView, Alert, Modal, TouchableOpacity, Image, ToastAndroid, } from 'react-native';
 import useAxiosHook from '../../utils/network/AxiosClient';
@@ -17,7 +16,7 @@ import ShowLoader from '../../components/ShowLoder';
 import { onReceiveNotification2 } from '../../utils/NotificationService';
 import { useNavigation } from '../../utils/navigation/NavigationService';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
+import { check, PERMISSIONS, RESULTS, openSettings, request } from 'react-native-permissions';
 
 const EditProfile = ({ route }) => {
   const { profileData } = route.params;
@@ -249,46 +248,69 @@ const handleSubmit = async () => {
     [userId, role, APP_URLS.baseWebUrl] // dependencies
   );
 
-  const handleImageSelect = () => {
-    const options = {
-      selectionLimit: 1,
-      mediaType: 'photo',
-      includeBase64: true,
-    };
 
-    const handleResponse = (response) => {
-      if (response.didCancel) {
-        console.log('User cancelled image picker');
-      } else if (response.errorCode) {
-        console.log('ImagePicker Error: ', response.errorMessage);
-      } else {
-        const base64Image = response?.assets?.[0]?.base64;
-
-        if (base64Image) {
-          const source = { uri: `${base64Image}` };
-          setImage(null);
-          setSelectedImage(base64Image);
-        } else {
-          console.log('Base64 image data not available');
-        }
-      }
-    };
-
-    Alert.alert(
-      'Select Image',
-      'key_choosean_21',
-      [
-        {
-          text: 'Camera',
-          onPress: () => launchCamera(options, handleResponse), // Open camera
-        },
-        {
-          text: 'Gallery',
-          onPress: () => launchImageLibrary(options, handleResponse), // Open gallery
-        },
-      ]
-    );
+const handleImageSelect = async () => {
+  const options = {
+    selectionLimit: 1,
+    mediaType: 'photo',
+    includeBase64: true,
   };
+
+  const cameraOptions = {
+    ...options,
+    saveToPhotos: false,  // ✅ Add kiya
+  };
+
+  const handleResponse = (response) => {
+    if (response.didCancel) {
+      console.log('User cancelled image picker');
+    } else if (response.errorCode) {
+      console.log('ImagePicker Error: ', response.errorMessage);
+    } else {
+      const base64Image = response?.assets?.[0]?.base64;
+      if (base64Image) {
+        const source = { uri: `${base64Image}` };
+        setImage(null);
+        setSelectedImage(base64Image);
+      } else {
+        console.log('Base64 image data not available');
+      }
+    }
+  };
+
+  // ✅ Camera permission check
+  const checkAndLaunchCamera = async () => {
+    const status = await check(PERMISSIONS.ANDROID.CAMERA);
+
+    if (status === RESULTS.BLOCKED) {
+      Alert.alert(
+        'Permission Required',
+        'Please allow camera access from settings',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => openSettings().catch(() => {}) },
+        ]
+      );
+      return;
+    }
+
+    if (status !== RESULTS.GRANTED) {
+      const result = await request(PERMISSIONS.ANDROID.CAMERA);
+      if (result !== RESULTS.GRANTED) return;
+    }
+
+    launchCamera(cameraOptions, handleResponse);
+  };
+
+  Alert.alert(
+    'Select Image',
+    'Choose an image from gallery or take a new photo',
+    [
+      { text: 'Camera', onPress: checkAndLaunchCamera },                        // ✅
+      { text: 'Gallery', onPress: () => launchImageLibrary(options, handleResponse) },
+    ]
+  );
+};
   const [districtData, setDistrictData] = useState([]);
   const [state, setState] = useState(profileData?.State || '')
   const [stateDist, setStateDist] = useState(profileData?.District || '')
@@ -342,49 +364,64 @@ const handleSubmit = async () => {
       />
     );
   };
- return (
-  <View style={styles.screen}>
-    <AppBarSecond title={'Edit Profile'} />
-
-    <KeyboardAwareScrollView
-      style={{ flex: 1 }}
-      contentContainerStyle={{ flexGrow: 1, paddingBottom: 30 }}
-      enableOnAndroid={true}
-      extraScrollHeight={100}
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* प्रोफाइल इमेज सेक्शन */}
+  return (
+    <View style={styles.screen}>
+      <AppBarSecond title={'Edit Profile'} />
       <TouchableOpacity onPress={() => setModalVisible(true)}>
-        <View style={[styles.imageContainer, { backgroundColor: colorConfig.secondaryColor }]}>
-          {image || selectedImage ? (
-            <Image
-              source={{
-                uri: selectedImage 
-                  ? `data:image/jpeg;base64,${selectedImage}` 
-                  : `http://${APP_URLS.baseWebUrl}${image}`,
-              }}
-              style={styles.profileImage}
-            />
-          ) : (
-            <Image
-              source={require('../drawer/assets/bussiness-man.png')}
-              style={styles.profileImage}
-            />
-          )}
-          {!image && !selectedImage && (
-            <Text style={{ color: 'white', textAlign: 'center', fontSize: 10 }}>{translate("key_profilepi_138")}</Text>
-          )}
+        <View style={[styles.imageContainer, {
+          backgroundColor: colorConfig.secondaryColor,
+        }]}>
+          {image ? <Image
+            source={{
+              uri: image
+                ? `http://${APP_URLS.baseWebUrl}` + image
+                : `data:image/jpeg;base64,` + selectedImage,
+            }}
+            style={styles.profileImage}
+          /> : <Image
+            source={require('../drawer/assets/bussiness-man.png')} // local image path
+            style={styles.profileImage}
+          />}
+
+          {!image && <Text style={{color:'white'}}>Profile Picture Not Found - click for upload new</Text>}
         </View>
       </TouchableOpacity>
+      <Modal
+        animationType="slide"
+        transparent={false}
+        visible={modalVisible}
+        onRequestClose={() => setModalVisible(false)}>
+        <View style={[styles.modalContainer, { backgroundColor: `${colorConfig.secondaryColor}/20` }]}>
+             {image ? <Image
+            source={{
+              uri: image
+                ? `http://${APP_URLS.baseWebUrl}` + image
+                : `data:image/jpeg;base64,` + selectedImage,
+            }}
+            style={styles.profileImage}
+          /> : <Image
+          // ../drawer/assets/bussiness-man.png
+            source={require('../drawer/assets/bussiness-man.png')} // local image path
+            style={styles.largeImage}
+          />}
 
-      {/* डायनामिक फॉर्म फील्ड्स */}
-      <View style={styles.formContainer}>
+          <View style={styles.modalButtons}>
+            <Button title="Edit" onPress={() => handleImageSelect()} />
+            <Button title="Save" onPress={() => uploadDoCx('Profile image', selectedImage)} />
+            <Button title="Cancel" onPress={() => setModalVisible(false)} />
+          </View>
+        </View>
+      </Modal>
+
+      {/* Form Fields */}
+      <ScrollView contentContainerStyle={styles.formContainer}>
         {Object.keys(formData)
-          .filter((key) => !['state', 'district', 'image', 'BusinessTypeCode'].includes(key))
+          .filter((key) => key !== 'state' && key !== 'district' && key !== 'image' && key !== 'BusinessTypeCode') // Filter out state and district
           .map((key) => (
             <View key={key} style={styles.inputContainer}>
               <FlotingInput
                 label={key.replace(/([A-Z])/g, ' $1').toUpperCase()}
+                autoFocus={true}
                 editable={true}
                 value={formData[key]}
                 onChangeTextCallback={(text) => handleInputChange(key, text)}
@@ -395,78 +432,60 @@ const handleSubmit = async () => {
             </View>
           ))}
 
-        {/* State Selection */}
-        <TouchableOpacity onPress={() => setShowStateList(true)}>
-          <View pointerEvents="none">
-            <FlotingInput value={state} label={'STATE'} editable={false} />
-          </View>
+
+        <TouchableOpacity onPress={() => {
+          setShowStateList(true)
+        }}>
+          <FlotingInput value={state} label={('state').toUpperCase()} editable={false} />
         </TouchableOpacity>
 
-        {/* District Selection */}
-        <TouchableOpacity onPress={() => { setShowDistrictList(true); }}>
-          <View pointerEvents="none">
-            <FlotingInput value={stateDist} label={'DISTRICT'} editable={false} />
-          </View>
+
+
+        <TouchableOpacity onPress={() => {
+          setShowStateList(false)
+          setShowStateList(true)
+        }}>
+          <FlotingInput value={stateDist}
+
+            label={('District').toUpperCase()}
+
+
+            editable={false} />
+
         </TouchableOpacity>
 
-        <View style={{ marginTop: 20 }}>
-          <Button title="Submit" onPress={handleSubmit} color="#007bff" />
-        </View>
-      </View>
-    </KeyboardAwareScrollView>
+        <Button title="Submit" onPress={handleSubmit} color="#007bff" />
 
-    {/* 2. Modals और BottomSheets (ScrollView के बाहर) */}
-    
-    {/* Full Screen Image View/Edit Modal */}
-    <Modal
-      animationType="slide"
-      transparent={false}
-      visible={modalVisible}
-      onRequestClose={() => setModalVisible(false)}
-    >
-      <View style={[styles.modalContainer, { backgroundColor: 'black' }]}>
-        <Image
-          source={
-            selectedImage 
-              ? { uri: `data:image/jpeg;base64,${selectedImage}` } 
-              : image 
-                ? { uri: `http://${APP_URLS.baseWebUrl}${image}` } 
-                : require('../drawer/assets/bussiness-man.png')
-          }
-          style={styles.largeImage}
-          resizeMode="contain"
-        />
-        <View style={styles.modalButtons}>
-          <Button title="Edit" onPress={() => handleImageSelect()} />
-          <Button title="Save" onPress={() => uploadDoCx('Profile image', selectedImage)} />
-          <Button title="Cancel" onPress={() => setModalVisible(false)} />
-        </View>
-      </View>
-    </Modal>
+        <BottomSheet
+          isVisible={showStateList || showDistrictList}
+          onBackdropPress={() => {
+            setShowStateList(false);
+            setShowDistrictList(false);
+          }}
+          scrollViewProps={{ scrollEnabled: false }}
+          containerStyle={{ backgroundColor: 'transparent' }}>
+          <View
+            style={{
+              backgroundColor: colors.white,
+              height: SCREEN_HEIGHT / 1.5,
+              flex: 1,
+              marginBottom: wScale(40),
+            }}>
+            <View style={styles.StateTitle}>
+              <Text style={styles.stateTitletext}>
+                {showStateList ? 'select state' : 'select District'}
+              </Text>
+            </View>
 
-    {/* State/District BottomSheet */}
-    <BottomSheet
-      animationType="none"
-      isVisible={showStateList || showDistrictList}
-      onBackdropPress={() => {
-        setShowStateList(false);
-        setShowDistrictList(false);
-      }}
-      containerStyle={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-    >
-      <View style={{ backgroundColor: colors.white, height: SCREEN_HEIGHT / 1.5 }}>
-        <View style={styles.StateTitle}>
-          <Text style={styles.stateTitletext}>
-            {showStateList ? 'Select State' : 'Select District'}
-          </Text>
-        </View>
-        {showBottomSheetList()}
-      </View>
-    </BottomSheet>
+            {showBottomSheetList()}
+          </View>
+        </BottomSheet>
 
-    {isload && <ShowLoader />}
-  </View>
-);
+
+        {isload && <ShowLoader />}
+      </ScrollView>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({

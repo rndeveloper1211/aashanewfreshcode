@@ -1,14 +1,19 @@
 const fs = require('fs');
 const path = require('path');
 
-// Config Paths
+// Paths
 const SRC_DIR = path.join(__dirname, 'src');
 const EN_JSON_PATH = path.join(__dirname, 'src', 'utils', 'languageUtils', 'en.json');
+const OUTPUT_FILE = path.join(__dirname, 'missing_texts.json');
 
-// Regex to find translate("ANY_KEY") or translate('ANY_KEY')
-const translateRegex = /translate\(['"]([^'"]+)['"]\)/g;
+// Regex
+const textTagRegex = /<Text[^>]*>([\s\S]*?)<\/Text>/g;
+const translateRegex = /translate\(['"][^'"]+['"]\)/;
+const dynamicRegex = /{.*?}/g;
+const tagRemoveRegex = /<[^>]+>/g;
+const emojiRegex = /[\p{Emoji_Presentation}\p{Extended_Pictographic}]/gu;
 
-function getAllTranslateKeys(dir, keys = new Set()) {
+function getHardcodedTexts(dir, results = new Set()) {
     const files = fs.readdirSync(dir);
 
     files.forEach(file => {
@@ -16,56 +21,79 @@ function getAllTranslateKeys(dir, keys = new Set()) {
         const stats = fs.statSync(filePath);
 
         if (stats.isDirectory()) {
-            getAllTranslateKeys(filePath, keys);
+            getHardcodedTexts(filePath, results);
         } else if (stats.isFile() && /\.(js|jsx|ts|tsx)$/.test(file)) {
             const content = fs.readFileSync(filePath, 'utf8');
+
             let match;
-            while ((match = translateRegex.exec(content)) !== null) {
-                keys.add(match[1]); // match[1] is the key name
-            }
+          while ((match = textTagRegex.exec(content)) !== null) {
+    let rawText = match[1].trim();
+
+    // ❌ Ignore translate()
+    if (translateRegex.test(rawText)) continue;
+
+    // ❌ Ignore pure JS expressions like {new Date(...) }
+    if (/^\{[\s\S]*\}$/.test(rawText)) continue;
+
+    // Remove nested JSX tags
+    let cleanText = rawText.replace(tagRemoveRegex, '');
+
+    // Remove dynamic values {item.xyz}
+    cleanText = cleanText.replace(dynamicRegex, '');
+
+    // Normalize spaces
+    cleanText = cleanText.replace(/\s+/g, ' ').trim();
+
+    if (!cleanText) continue;
+
+    // ❌ Ignore emoji/icons
+    if (emojiRegex.test(cleanText)) continue;
+
+    // ❌ Ignore JSX/code garbage
+    if (/onPress|style=|=>|keyboardType|maxLength|ref=|value=/.test(cleanText)) continue;
+
+    // ❌ Ignore numbers/symbols
+    if (/^[₹0-9\s.,%()\-]+$/.test(cleanText)) continue;
+
+    results.add(cleanText);
+}
         }
     });
-    return keys;
+
+    return results;
 }
 
-function syncEnJson() {
-    console.log('--- Starting Sync Process ---');
+function saveMissingTexts() {
+    console.log('--- Finding Unused Hardcoded Texts ---');
 
-    // 1. Get all keys from src
-    const foundKeys = getAllTranslateKeys(SRC_DIR);
-    console.log(`🔍 Total unique keys found in code: ${foundKeys.size}`);
+    const texts = getHardcodedTexts(SRC_DIR);
 
-    // 2. Read existing en.json
+    // Load en.json
     let enData = {};
     if (fs.existsSync(EN_JSON_PATH)) {
         enData = JSON.parse(fs.readFileSync(EN_JSON_PATH, 'utf8'));
-    } else {
-        console.log('⚠️ en.json not found, creating a new one.');
     }
 
-    // 3. Find missing keys and add them
-    let addedCount = 0;
-    foundKeys.forEach(key => {
-        if (!enData.hasOwnProperty(key)) {
-            // Hum key ko hi value bana dete hain taaki aap baad mein translate kar sakein
-            enData[key] = key.replace(/_/g, ' '); 
-            console.log(`➕ Adding missing key: ${key}`);
-            addedCount++;
+    const cleanTexts = [...new Set([...texts].map(t => t.trim()))]
+        .filter(t => t.length > 0)
+        .sort();
+
+    const missingJson = {};
+
+    cleanTexts.forEach(text => {
+        if (!enData.hasOwnProperty(text)) {
+            missingJson[text] = text;
         }
     });
 
-    if (addedCount > 0) {
-        // 4. Save updated en.json (with alphabetical sorting)
-        const sortedEnData = {};
-        Object.keys(enData).sort().forEach(k => {
-            sortedEnData[k] = enData[k];
-        });
+    if (Object.keys(missingJson).length > 0) {
+        fs.writeFileSync(OUTPUT_FILE, JSON.stringify(missingJson, null, 2), 'utf8');
 
-        fs.writeFileSync(EN_JSON_PATH, JSON.stringify(sortedEnData, null, 2), 'utf8');
-        console.log(`\n✅ Success: ${addedCount} new keys added to en.json`);
+        console.log(`\n📄 Missing texts: ${Object.keys(missingJson).length}`);
+        console.log('✅ Saved to missing_texts.json');
     } else {
-        console.log('\n✨ Everything is up to date. No missing keys found.');
+        console.log('✅ No missing texts found');
     }
 }
 
-syncEnJson();
+saveMissingTexts();

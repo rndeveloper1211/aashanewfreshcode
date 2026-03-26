@@ -142,9 +142,7 @@ const LazyScene = React.memo(({
 
 const EmptyState = () => (
   <View style={styles.emptyWrap}>
-    <Text style={styles.emptyIcon}>📡</Text>
     <Text style={styles.emptyTitle}>{translate('No_Services_Available')}</Text>
-    <Text style={styles.emptySubtitle}>Koi service available nahi hai abhi.</Text>
   </View>
 );
 

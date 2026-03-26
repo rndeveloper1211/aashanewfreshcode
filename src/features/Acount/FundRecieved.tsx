@@ -1,25 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, FlatList, StyleSheet, ActivityIndicator, Alert, TouchableOpacity, ToastAndroid } from 'react-native';
+import {
+    View, Text, FlatList, StyleSheet, Alert,
+    TouchableOpacity, ToastAndroid, Animated
+} from 'react-native';
 import useAxiosHook from '../../utils/network/AxiosClient';
 import { APP_URLS } from '../../utils/network/urls';
 import AppBarSecond from '../drawer/headerAppbar/AppBarSecond';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../reduxUtils/store';
 import { hScale, wScale } from '../../utils/styles/dimensions';
-import LinearGradient from 'react-native-linear-gradient';
-import Calendarsvg from '../drawer/svgimgcomponents/Calendarsvg';
-import SearchIcon from '../drawer/svgimgcomponents/Searchicon';
 import DateRangePicker from '../../components/DateRange';
 import NoDatafound from '../drawer/svgimgcomponents/Nodatafound';
 import { translate } from '../../utils/languageUtils/I18n';
-import { Tab, TabView, } from "@rneui/themed";
-import TabBar from "../Recharge/TabView/TabBarView";
+import TabBar from '../Recharge/TabView/TabBarView';
 import ShowLoader from '../../components/ShowLoder';
 
 const FundReceivedReport = () => {
     const { colorConfig, IsDealer } = useSelector((state: RootState) => state.userInfo);
-    const color1 = `${colorConfig.secondaryColor}20`
-    const [selectedDate2, setSelectedDate2] = useState(new Date());
+
+    const PRIMARY = colorConfig.secondaryColor || '#4F46E5';
+    const PRIMARY_LIGHT = `${PRIMARY}18`;
+    const PRIMARY_MID = `${PRIMARY}35`;
+
     const [inforeport, setInforeport] = useState([]);
     const [inforeportAdmin, setInforeportAdmin] = useState([]);
     const [inforeportDealer, setInforeportDealer] = useState([]);
@@ -28,26 +30,20 @@ const FundReceivedReport = () => {
         to: new Date().toISOString().split('T')[0],
     });
     const [selectedStatus, setSelectedStatus] = useState('ALL');
-    const [searchnumber, setSearchnumber] = useState('');
-    const [isAdmin, setIsAdmin] = useState(true);
     const [loading, setLoading] = useState(true);
-    const { get, post } = useAxiosHook();
-    const [selectedOption, setSelectedOption] = useState("IsDealer");
+    const { get } = useAxiosHook();
+    const [selectedOption, setSelectedOption] = useState('IsDealer');
 
     useEffect(() => {
-
         if (!IsDealer) {
             FundRecReport(selectedDate.from, selectedDate.to, selectedStatus, '');
-
         } else {
             FundRecReport(selectedDate.from, selectedDate.to, selectedStatus, selectedOption);
-
         }
     }, []);
 
-
     const FundRecReport = async (from, to, status, fromm) => {
-        setLoading(true)
+        setLoading(true);
         const formattedFrom = new Date(from).toISOString().split('T')[0];
         const formattedTo = new Date(to).toISOString().split('T')[0];
 
@@ -55,27 +51,11 @@ const FundReceivedReport = () => {
         const url2 = `${APP_URLS.ReceiveFund_by_master}txt_frm_date=${formattedFrom}&txt_to_date=${formattedTo}`;
         const url3 = `${APP_URLS.ReceiveFund_by_admin}txt_frm_date=${formattedFrom}&txt_to_date=${formattedTo}`;
 
-        let selectedUrl;
-
-        switch (fromm) {
-            case 'IsDealer':
-                selectedUrl = url2;
-                break;
-            case 'isAdmin':
-                selectedUrl = url3;
-                break;
-            default:
-                selectedUrl = url;
-                break;
-        }
+        let selectedUrl = fromm === 'IsDealer' ? url2 : fromm === 'isAdmin' ? url3 : url;
 
         try {
             const response = await get({ url: selectedUrl });
-            console.log(selectedUrl);
-            console.log(response)
-            if (!response) {
-                throw new Error('Network response was not ok');
-            }
+            if (!response) throw new Error('Network response was not ok');
 
             if (fromm === 'isAdmin') {
                 if (response.Report === 'No Data Found') {
@@ -83,9 +63,7 @@ const FundReceivedReport = () => {
                 } else {
                     setInforeportAdmin(response.Report);
                 }
-
             } else if (fromm === 'IsDealer') {
-                //setInforeport(response);
                 if (response.Report === 'No Data Found') {
                     ToastAndroid.show(response.Report, ToastAndroid.SHORT);
                 } else {
@@ -93,385 +71,282 @@ const FundReceivedReport = () => {
                 }
             } else {
                 if (response.Report === 'No Data Found') {
-                    ToastAndroid.show(response.Report , ToastAndroid.SHORT);
+                    ToastAndroid.show(response.Report, ToastAndroid.SHORT);
                 } else {
                     setInforeport(response);
                 }
             }
-
-            setLoading(false)
-
         } catch (error) {
-            console.error('Error fetching data:', error);
-            Alert.alert('Error', 'Failed to load data, showing demo data');
+            Alert.alert('Error', 'Failed to load data');
         } finally {
             setLoading(false);
         }
     };
 
-    const renderItemMaster = ({ item }) => {
-        return (
-            <View>
-                <View style={[styles.itemContainer, { backgroundColor: color1 }]}>
-                    <View style={styles.row}>
-                        <View style={styles.column}>
-                            <Text style={styles.label}>{translate('Name')}</Text>
-                            <Text style={styles.value}>{item.SuperstokistName || '.....'}</Text>
-                        </View>
-                        <View style={styles.column}>
-                            <Text style={styles.label}>{translate('Date')}</Text>
-                            <Text style={styles.value}>{item.date_dlm || '0 0 0'}</Text>
-                        </View>
+    // ── Shared badge chip ──────────────────────────────────────────────────────
+    const Chip = ({ label, value }: { label: string; value: string }) => (
+        <View style={[chip.wrap, { backgroundColor: PRIMARY_LIGHT, borderColor: PRIMARY_MID }]}>
+            <Text style={[chip.label, { color: PRIMARY }]}>{label}</Text>
+            <Text style={chip.value}>{value}</Text>
+        </View>
+    );
+
+    // ── Amount highlight ───────────────────────────────────────────────────────
+    const AmountChip = ({ label, value }: { label: string; value: string }) => (
+        <View style={[chip.wrap, { backgroundColor: PRIMARY_MID, borderColor: PRIMARY, flex: 1, marginHorizontal: wScale(2) }]}>
+            <Text style={[chip.label, { color: PRIMARY }]}>{label}</Text>
+            <Text style={[chip.value, { color: PRIMARY, fontWeight: '700' }]}>{value}</Text>
+        </View>
+    );
+
+    // ── Card shell ─────────────────────────────────────────────────────────────
+    const Card = ({ children }: { children: React.ReactNode }) => (
+        <View style={[card.shell, { borderLeftColor: PRIMARY }]}>
+            {children}
+        </View>
+    );
+
+    // ── Render: Retailer ───────────────────────────────────────────────────────
+    const renderItem = ({ item, index }) => (
+        <Animated.View style={{ opacity: 1 }}>
+            <Card>
+                <View style={card.topRow}>
+                    <View style={card.nameBlock}>
+                        <Text style={card.nameLabel}>{translate('Name')}</Text>
+                        <Text style={[card.nameValue, { color: PRIMARY }]}>
+                            {item.SenderId || '....'}
+                        </Text>
                     </View>
-                    <View style={styles.row}>
-                        <View style={styles.column}>
-                            <Text style={styles.label}>{translate('Pre Balance')}</Text>
-                            <Text style={styles.value}>{`\u20B9 ${item.dealer_prebal || ''}`}</Text>
-                        </View>
-                        <View style={[styles.column,]}>
-                            <View >
-                                <Text style={styles.label}>{translate('Post Balance')}</Text>
-                                <Text style={styles.value}>{`\u20B9 ${item.dealer_postbal || ''}`}</Text>
-                            </View>
-                        </View>
-                        <View style={styles.column}>
-                            <Text style={styles.label}>{translate('Amount')}</Text>
-                            <Text style={styles.value}>{`\u20B9 ${item.balance || ''}`}</Text>
-                        </View>
-                        <View style={styles.column}>
-                            <Text style={styles.label}>{'Transfer'}</Text>
-                            <Text style={styles.value}>{`\u20B9 ${item.Newbalance || ''}`}</Text>
-                        </View>
-                        <View style={styles.column}>
-                            <Text style={styles.label}>{'Type'}</Text>
-                            <Text style={styles.value}>{item.bal_type || ''}</Text>
-                        </View>
+                    <View style={card.dateBlock}>
+                        <Text style={card.dateLabel}>{translate('Date')}</Text>
+                        <Text style={card.dateValue}>{item.Date}</Text>
                     </View>
                 </View>
+                <View style={card.amountRow}>
+                    <AmountChip label={translate('Pre Balance')} value={`₹ ${item.OldBal}`} />
+                    <AmountChip label={translate('Post Balance')} value={`₹ ${item.CurrentBal}`} />
+                    <AmountChip label={translate('Amount')} value={`₹ ${item.Amount}`} />
+                </View>
+            </Card>
+        </Animated.View>
+    );
+
+    // ── Render: Master/Dealer ──────────────────────────────────────────────────
+    const renderItemMaster = ({ item, index }) => (
+        <Card>
+            <View style={card.topRow}>
+                <View style={card.nameBlock}>
+                    <Text style={card.nameLabel}>{translate('Name')}</Text>
+                    <Text style={[card.nameValue, { color: PRIMARY }]}>
+                        {item.SuperstokistName || '.....'}
+                    </Text>
+                </View>
+                <View style={card.dateBlock}>
+                    <Text style={card.dateLabel}>{translate('Date')}</Text>
+                    <Text style={card.dateValue}>{item.date_dlm || '— — —'}</Text>
+                </View>
             </View>
-        );
-    };
+
+            <View style={card.chipRow}>
+                <Chip label={translate('Type')} value={item.bal_type || '—'} />
+            </View>
+
+            <View style={card.amountRow}>
+                <AmountChip label={translate('Pre Balance')} value={`₹ ${item.dealer_prebal || '0'}`} />
+                <AmountChip label={translate('Post Balance')} value={`₹ ${item.dealer_postbal || '0'}`} />
+                <AmountChip label={translate('Amount')} value={`₹ ${item.balance || '0'}`} />
+                <AmountChip label={'Transfer'} value={`₹ ${item.Newbalance || '0'}`} />
+            </View>
+        </Card>
+    );
+
+    // ── Render: Admin ──────────────────────────────────────────────────────────
     const renderItemAdmin = ({ item }) => (
-
-        <View style={[styles.innerview]}>
-
-            <View style={[styles.itemContainer, { backgroundColor: color1 }]}>
-
-                <View style={[styles.row, { paddingBottom: hScale(5) }]}>
-
-                    <View style={styles.column}>
-
-                        <Text style={styles.label}>{translate('Name')}</Text>
-
-                        <Text style={styles.value}>{item.Name || "....."}</Text>
-
-                    </View>
-
-                    <View style={styles.column}>
-
-                        <Text style={styles.label}>{translate('Date')}</Text>
-
-                        <Text style={styles.value}>{item.date_dlm || "0 0 0"}</Text>
-
-                    </View>
-
+        <Card>
+            <View style={card.topRow}>
+                <View style={card.nameBlock}>
+                    <Text style={card.nameLabel}>{translate('Name')}</Text>
+                    <Text style={[card.nameValue, { color: PRIMARY }]}>
+                        {item.Name || '.....'}
+                    </Text>
                 </View>
-
-
-                <View style={styles.row}>
-
-                    <View style={styles.balanceColumn}>
-
-                        <Text style={styles.label}>{translate('Pre Balance')}</Text>
-
-                        <Text style={styles.value}>{"\u{20B9} " + (item.dealer_prebal || "")}</Text>
-
-                    </View>
-
-                    <View style={styles.balanceColumn}>
-
-                        <Text style={styles.label}>{translate('Post Balance')}</Text>
-
-                        <Text style={styles.value}>{"\u{20B9} " + (item.dealer_postbal || "")}</Text>
-
-                    </View>
-
-                    <View style={styles.balanceColumn}>
-
-                        <Text style={styles.label}>{translate('Amount')}</Text>
-
-                        <Text style={styles.value}>{"\u{20B9} " + (item.balance || "")}</Text>
-
-                    </View>
-
-                    <View style={styles.balanceColumn}>
-
-                        <Text style={styles.label}>{translate('Type')}</Text>
-
-                        <Text style={styles.value}>{item.bal_type || ""}</Text>
-
-                    </View>
-
-                </View>
-
-            </View>
-
-        </View>
-
-    );
-    const renderItem = ({ item }) => (
-        <View >
-            <View style={[styles.itemContainer, { backgroundColor: color1 }]}>
-                <View style={styles.row}>
-                    <View style={styles.leftColumn}>
-                        <Text style={styles.label}>{'Name'}</Text>
-                        <Text style={styles.value}>{item.SenderId === '' ? '....' : item.SenderId}</Text>
-                    </View>
-                    <View style={styles.rightColumn}>
-                        <Text style={styles.label}>{'Date'}</Text>
-                        <Text style={styles.value}>{item.Date}</Text>
-                    </View>
-                </View>
-                <View style={styles.row}>
-                    <View style={styles.column}>
-                        <Text style={styles.label}>{'Pre Balance'}</Text>
-                        <Text style={styles.value}>₹ {item.OldBal}</Text>
-                    </View>
-                    <View style={styles.column}>
-                        <Text style={styles.label}>{'Post Balance'}</Text>
-                        <Text style={styles.value}>₹ {item.CurrentBal}</Text>
-                    </View>
-                    <View style={styles.column}>
-                        <Text style={styles.label}>{'Amount'}</Text>
-                        <Text style={styles.value}>₹ {item.Amount}</Text>
-                    </View>
+                <View style={card.dateBlock}>
+                    <Text style={card.dateLabel}>{translate('Date')}</Text>
+                    <Text style={card.dateValue}>{item.date_dlm || '— — —'}</Text>
                 </View>
             </View>
-        </View>
+
+            <View style={card.chipRow}>
+                <Chip label={translate('Type')} value={item.bal_type || '—'} />
+            </View>
+
+            <View style={card.amountRow}>
+                <AmountChip label={translate('Pre Balance')} value={`₹ ${item.dealer_prebal || '0'}`} />
+                <AmountChip label={translate('Post Balance')} value={`₹ ${item.dealer_postbal || '0'}`} />
+                <AmountChip label={translate('Amount')} value={`₹ ${item.balance || '0'}`} />
+            </View>
+        </Card>
     );
 
+    // ── Active list to show ────────────────────────────────────────────────────
+    const activeData = !IsDealer
+        ? inforeport
+        : selectedOption === 'IsDealer'
+        ? inforeportDealer
+        : inforeportAdmin;
 
-
+    const activeRender = !IsDealer
+        ? renderItem
+        : selectedOption === 'IsDealer'
+        ? renderItemMaster
+        : renderItemAdmin;
 
     return (
-
-        <View style={styles.main}>
-
+        <View style={styles.root}>
+            {/* App Bar */}
             <AppBarSecond
-                title="Fund Recieved Report"
+                title={translate('Fund Received Report')}
                 onActionPress={undefined}
                 actionButton={undefined}
                 onPressBack={undefined}
             />
+
+            {/* Date Picker */}
             <DateRangePicker
                 onDateSelected={(from, to) => setSelectedDate({ from, to })}
-                SearchPress={(from, to, status) => FundRecReport(from, to, status, IsDealer ? selectedOption : '')}
+                SearchPress={(from, to, status) =>
+                    FundRecReport(from, to, status, IsDealer ? selectedOption : '')
+                }
                 status={selectedStatus}
                 setStatus={setSelectedStatus}
                 isStShow={false}
                 isshowRetailer={false}
-                retailerID={(id) => { console.log(id) }}
-
+                retailerID={(id) => console.log(id)}
             />
-            <View style={styles.container}>
-                {IsDealer === false && <>{inforeport ? <FlatList
-                    data={inforeport}
-                    renderItem={renderItem}
-                    keyExtractor={(item, index) => index.toString()}
-                    contentContainerStyle={{ paddingBottom: 20 }}
-                /> : <NoDatafound />}</>}
-                {IsDealer && <View style={styles.tabview}>
-                    <TabBar
-                        tabButtonstyle={styles.tabButtonstyle}
-                        Unselected="from Admin"
-                        Selected="from Master"
-                        onPress2={() => {
-                            FundRecReport(selectedDate.from, selectedDate.to, selectedStatus, 'isAdmin');
-                            setSelectedOption('isAdmin')
-                            // setViewPlans(false);
-                            // getopertaorlist('Postpaid');
-                            // setispost(true);
-                        }}
-                        onPress1={() => {
-                            FundRecReport(selectedDate.from, selectedDate.to, selectedStatus, 'IsDealer');
-                            setSelectedOption('IsDealer')
 
-                            // setViewPlans(true);
-                            // getopertaorlist('Prepaid');
-                            // setispost(false);
+            {/* Tab bar for dealers */}
+            {IsDealer && (
+                <View style={styles.tabWrap}>
+                    <TabBar
+                        tabButtonstyle={styles.tabBtn}
+                        Unselected={translate('from Admin')}
+                        Selected={translate('from Master')}
+                        onPress1={() => {
+                            setSelectedOption('IsDealer');
+                            FundRecReport(selectedDate.from, selectedDate.to, selectedStatus, 'IsDealer');
+                        }}
+                        onPress2={() => {
+                            setSelectedOption('isAdmin');
+                            FundRecReport(selectedDate.from, selectedDate.to, selectedStatus, 'isAdmin');
                         }}
                     />
-                </View>}
+                </View>
+            )}
 
-                {
-                    selectedOption === 'IsDealer' ? (
-                        inforeportDealer ? (
-                            <FlatList
-                                data={inforeportDealer}
-                                renderItem={renderItemMaster}
-                                keyExtractor={(item, index) => index.toString()}
-                                contentContainerStyle={{ paddingBottom: 20 }}
-                            />
-                        ) : (
-                            <NoDatafound />
-                        )
-                    ) : (
-                        inforeportAdmin ? (
-                            <FlatList
-                                data={inforeportAdmin}
-                                renderItem={renderItemAdmin}
-                                keyExtractor={(item, index) => index.toString()}
-                                contentContainerStyle={{ paddingBottom: 20 }}
-                            />
-                        ) : (
-                            <NoDatafound />
-                        )
-                    )
-                }
-
-
-
-
-
-
-             
+            {/* List */}
+            <View style={styles.listWrap}>
+                {activeData && activeData.length > 0 ? (
+                    <FlatList
+                        data={activeData}
+                        renderItem={activeRender}
+                        keyExtractor={(_, i) => i.toString()}
+                        contentContainerStyle={{ paddingBottom: hScale(30) }}
+                        showsVerticalScrollIndicator={false}
+                    />
+                ) : (
+                    !loading && <NoDatafound />
+                )}
             </View>
 
-               {loading && <ShowLoader />}
+            {loading && <ShowLoader />}
         </View>
-
-
     );
 };
 
-const styles = StyleSheet.create({
-    main: {
-        flex: 1,
-        backgroundColor: '#fff'
-    },
-    container: {
-        paddingHorizontal: wScale(10),
-        paddingVertical: hScale(5),
-        marginVertical: hScale(5),
-    },
-    itemContainer: {
-        marginBottom: hScale(5),
-        paddingHorizontal: wScale(10),
-        borderRadius: 5,
-        paddingVertical: hScale(5)
-    },
-
-    innerview: {
+// ── Card styles ──────────────────────────────────────────────────────────────
+const card = StyleSheet.create({
+    shell: {
         backgroundColor: '#fff',
-
+        borderRadius: wScale(12),
+        marginHorizontal: wScale(12),
+        marginBottom: hScale(10),
+        paddingHorizontal: wScale(12),
+        paddingVertical: hScale(10),
+        borderLeftWidth: wScale(4),
+        // Shadow
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: hScale(2) },
+        shadowOpacity: 0.07,
+        shadowRadius: 6,
+        elevation: 3,
     },
-
-
-    header: {
+    topRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
-        padding: wScale(10),
-        borderRadius: 5,
+        alignItems: 'flex-start',
+        marginBottom: hScale(8),
     },
-    datePickerButton: {
-        paddingHorizontal: wScale(10),
-        borderRadius: 5,
+    nameBlock: { flex: 1 },
+    nameLabel: { fontSize: wScale(10), color: '#9CA3AF', letterSpacing: 0.5, textTransform: 'uppercase' },
+    nameValue: { fontSize: wScale(14), fontWeight: '700', marginTop: hScale(2) },
+    dateBlock: { alignItems: 'flex-end' },
+    dateLabel: { fontSize: wScale(10), color: '#9CA3AF', letterSpacing: 0.5, textTransform: 'uppercase' },
+    dateValue: { fontSize: wScale(12), color: '#374151', fontWeight: '600', marginTop: hScale(2) },
+    amountRow: {
         flexDirection: 'row',
-        alignItems: 'center',
-        borderWidth: wScale(1),
-        borderColor: '#000'
-
+        marginTop: hScale(6),
     },
-    searchButton: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingHorizontal: wScale(15),
-        backgroundColor: '#007bff',
-        borderRadius: 5,
-        borderWidth: wScale(1),
-        borderColor: '#000'
-    },
-    buttonText: {
-        color: '#fff',
-        fontSize: wScale(14),
-    },
-    dateText: {
-        color: '#fff',
-        fontSize: wScale(14),
-    },
-    timetext: {
-        color: '#000',
-        fontSize: wScale(14),
-    },
-    timenumber: {
-        color: '#000',
-        fontSize: wScale(16),
-        fontWeight: 'bold'
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    row: {
+    chipRow: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: wScale(6),
+        marginBottom: hScale(4),
+    },
+});
 
-    },
-    leftColumn: {
-    },
-    rightColumn: {
-        flex: 1,
-        alignItems: 'flex-end',
-
-    },
-    column: {
+// ── Chip styles ──────────────────────────────────────────────────────────────
+const chip = StyleSheet.create({
+    wrap: {
+        borderRadius: wScale(8),
+        borderWidth: 1,
+        paddingHorizontal: wScale(8),
+        paddingVertical: hScale(4),
         alignItems: 'center',
-        borderWidth: wScale(.5),
-        paddingHorizontal: wScale(5),
-        paddingVertical: hScale(2),
-        marginTop: hScale(5),
-        borderRadius: 5
-
+        marginRight: wScale(4),
     },
     label: {
-        fontSize: wScale(12),
-        color: '#666666',
+        fontSize: wScale(9),
+        letterSpacing: 0.4,
+        textTransform: 'uppercase',
+        fontWeight: '600',
+        marginBottom: hScale(1),
     },
     value: {
-        fontSize: wScale(14),
-        fontWeight: 'bold',
-        color: '#333333',
+        fontSize: wScale(11),
+        fontWeight: '700',
+        color: '#1F2937',
     },
-    tabview: {
-        paddingTop: hScale(5),
-        paddingBottom: hScale(10),
-    },
-    ///////////////////////////
-    listContainer: {
-        padding: 10,
-    },
+});
 
-    innerContainer: {
-        margin: 0.5,
-        padding: 5,
-        backgroundColor: 'rgba(255, 255, 255, 0.5)',
+// ── Page styles ──────────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+    root: {
+        flex: 1,
+        backgroundColor: '#F9FAFB',
     },
-    separator: {
-        marginVertical: 2,
-        height: 1,
-        backgroundColor: '#ccc',
+    tabWrap: {
+        paddingHorizontal: wScale(12),
+        paddingTop: hScale(8),
+        paddingBottom: hScale(4),
     },
-    borderBox: {
-        borderWidth: 1,
-        borderColor: '#ccc',
-        padding: 5,
+    tabBtn: {
+        width: '44%',
+        paddingVertical: hScale(8),
     },
-    tabButtonstyle: {
-        width: '42%',
-        paddingVertical: hScale(7),
-
-    }
+    listWrap: {
+        flex: 1,
+        paddingTop: hScale(6),
+    },
 });
 
 export default FundReceivedReport;

@@ -1,4 +1,4 @@
-package com.digital2pay;
+package com.maxuspay;
 
 import android.app.Application;
 import com.facebook.react.PackageList;
@@ -11,11 +11,11 @@ import com.facebook.react.defaults.DefaultReactNativeHost;
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
 import com.facebook.soloader.SoLoader;
 import java.util.List;
-import com.digital2pay.AepsPackage;
-import com.digital2pay.upi.UpiPackage;
-import com.digital2pay.location.LocationPackage; // <-- add this
-import com.digital2pay.security.SecurityPackage;
-import com.digital2pay.ContactPicker.ContactPickerPackage;
+import com.maxuspay.AepsPackage;
+import com.maxuspay.upi.UpiPackage;
+import com.maxuspay.location.LocationPackage; // <-- add this
+import com.maxuspay.security.SecurityPackage;
+import com.maxuspay.ContactPicker.ContactPickerPackage;
 import androidx.multidex.MultiDexApplication;
 public class MainApplication extends MultiDexApplication implements ReactApplication {
 

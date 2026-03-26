@@ -3,7 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <application
-        android:name="com.digital2pay.MainApplication"
+        android:name="com.maxuspay.MainApplication"
         android:usesCleartextTraffic="true"
         android:theme="@style/AppTheme"
         tools:replace="android:name,android:usesCleartextTraffic,android:theme" />

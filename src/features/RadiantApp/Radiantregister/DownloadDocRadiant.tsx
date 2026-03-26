@@ -28,6 +28,7 @@ import { APP_URLS } from '../../../utils/network/urls';
 import DynamicButton from '../../drawer/button/DynamicButton';
 import { Image } from 'react-native-compressor';
 import { useNavigation } from '@react-navigation/native';
+import { check, PERMISSIONS, RESULTS, openSettings, request, requestMultiple } from 'react-native-permissions';
 
 interface DocumentItem {
     id: string;
@@ -200,47 +201,58 @@ const DownloadDocRadiant = () => {
     };
 
 
-    const requestPermissions = async () => {
-        if (Platform.OS !== 'android') return true;
+const requestPermissions = async () => {
+  if (Platform.OS !== 'android') return true;
 
-        try {
-            const apiLevel = parseInt(Platform.Version.toString(), 10);
-            let permissions: string[] = [
-                PermissionsAndroid.PERMISSIONS.CAMERA,
-            ];
+  try {
+    const apiLevel = parseInt(Platform.Version.toString(), 10);
 
-            if (apiLevel >= 33) {
-                // Android 13+
-                permissions.push(
-                    PermissionsAndroid.PERMISSIONS.READ_MEDIA_IMAGES,
-                    PermissionsAndroid.PERMISSIONS.READ_MEDIA_VIDEO
-                );
-            } else {
-                permissions.push(
-                    PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-                    PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE
-                );
-            }
+    // ✅ Android 13+ pe sirf CAMERA chahiye
+    // launchImageLibrary Photo Picker use karta hai — koi permission nahi chahiye
+    if (apiLevel >= 33) {
+      const status = await check(PERMISSIONS.ANDROID.CAMERA);
 
-            // Filter out any undefined/null permissions
-            permissions = permissions.filter(Boolean);
+      if (status === RESULTS.BLOCKED) {
+        Alert.alert(
+          'Permission Required',
+          'Please allow camera access from settings',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => openSettings().catch(() => {}) },
+          ]
+        );
+        return false;
+      }
 
-            const result = await PermissionsAndroid.requestMultiple(permissions);
+      if (status !== RESULTS.GRANTED) {
+        const result = await request(PERMISSIONS.ANDROID.CAMERA);
+        return result === RESULTS.GRANTED;
+      }
 
-            const denied = Object.values(result).some(
-                status => status !== PermissionsAndroid.RESULTS.GRANTED
-            );
+      return true;
+    }
 
-            if (denied) {
-                ToastAndroid.show('Some permissions were denied', ToastAndroid.SHORT);
-            }
+    // ✅ Android 12 aur below
+    const results = await requestMultiple([
+      PERMISSIONS.ANDROID.CAMERA,
+      PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE,
+    ]);
 
-            return !denied;
-        } catch (err) {
-            console.error('Permission error:', err);
-            return false;
-        }
-    };
+    const denied = Object.values(results).some(
+      status => status !== RESULTS.GRANTED
+    );
+
+    if (denied) {
+      ToastAndroid.show('Some permissions were denied', ToastAndroid.SHORT);
+    }
+
+    return !denied;
+
+  } catch (err) {
+    console.error('Permission error:', err);
+    return false;
+  }
+};
 
 
 

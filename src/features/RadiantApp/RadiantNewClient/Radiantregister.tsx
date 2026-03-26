@@ -11,7 +11,7 @@ import { RootState } from '../../../reduxUtils/store';
 import LottieView from 'lottie-react-native';
 import { launchCamera, launchImageLibrary } from 'react-native-image-picker';
 import { ALERT_TYPE, Dialog } from 'react-native-alert-notification';
-import { openSettings } from 'react-native-permissions';
+import { check, openSettings, PERMISSIONS, request, RESULTS } from 'react-native-permissions';
 import ClosseModalSvg2 from '../../drawer/svgimgcomponents/ClosseModal2';
 import ImageBottomSheet from '../../../components/ImageBottomSheet';
 import DynamicButton from '../../drawer/button/DynamicButton';
@@ -370,105 +370,127 @@ const Radiantregister = ({ response }) => {
       console.error('Failed to save the data to the storage', e);
     }
   };
-  const handleImageSelect = (side: string) => {
-    console.log(side);
-    setLastUpload(side);
-    setIsBottomSheetVisible(false);
 
-    const options = {
-      selectionLimit: 1,
-      mediaType: 'photo',
-    };
+const handleImageSelect = async (side: string) => {
+  console.log(side);
+  setLastUpload(side);
+  setIsBottomSheetVisible(false);
 
-    const cameraOptions = {
-      ...options,
-      cameraType: 'back',
-      quality: 0.3,
-    };
-
-    const handleResponse = async (response: any) => {
-      if (response.didCancel) {
-        console.log('User cancelled image picker');
-        return;
-      } else if (response.errorCode) {
-        console.log('Error: ', response.errorCode);
-        return;
-      }
-
-      try {
-        const imageUri = response?.assets[0]?.uri;
-        if (!imageUri) {
-          console.log('Image URI is missing!');
-          return;
-        }
-
-        const compressedImage = await Image.compress(imageUri, {
-          quality: 0.5,             // Set compression quality
-          maxWidth: 1000,          // Optional max width
-          maxHeight: 1000,         // Optional max height
-        });
-
-        // Read the compressed image file as base64
-        const base64String = await RNFS.readFile(compressedImage, 'base64');
-        const source = `data:image/jpeg;base64,${base64String}`;
-
-        setImagePath(source);  // Store the image source in state
-
-        // Log image size after compression
-        console.log(`Image size after compression: ${(base64String.length / 1024).toFixed(2)} KB`);
-
-        // Update data based on the "side" argument
-        switch (side) {
-          case 'AF':
-            setData({ ...data, AadharcardFrontcopy: `data:image/jpeg;base64,${base64String}` });
-            setAadharModal(true);
-            break;
-          case 'AB':
-            setData({ ...data, AadharcardBackcopy: `data:image/jpeg;base64,${base64String}` });
-            setAadharModal(true);
-            break;
-          case 'DL':
-            setDrivingLicense64(base64String);
-            setData({ ...data, DrivinglicenceCopy: `data:image/jpeg;base64,${base64String}` });
-            setImageModalVisible(true);
-            break;
-          case 'VID':
-            setVoterId64(base64String);
-            setImageModalVisible(true);
-            break;
-          case 'POV':
-            setPolicverification64(base64String);
-            setData({ ...data, Policverificationcopy: `data:image/jpeg;base64,${base64String}` });
-            setImageModalVisible(true);
-            break;
-          case 'PC':
-            setPanCard64(base64String);
-            setData({ ...data, Pancardcopy: `data:image/jpeg;base64,${base64String}` });
-            setImageModalVisible(true);
-            break;
-          case 'CH':
-            setCheck64(base64String);
-            setData({ ...data, CheckCopy: `data:image/jpeg;base64,${base64String}` });
-            setImageModalVisible(true);
-            break;
-          default:
-            console.log('Unknown side:', side);
-        }
-      } catch (error) {
-        console.error('Error during image processing: ', error);
-      }
-    };
-
-    Alert.alert(
-      'Select Image',
-      'key_choosean_21',
-      [
-        { text: 'Cancel' },
-        { text: 'Camera', onPress: () => launchCamera(cameraOptions, handleResponse) },
-        { text: 'Gallery', onPress: () => launchImageLibrary(options, handleResponse) },
-      ]
-    );
+  const options = {
+    selectionLimit: 1,
+    mediaType: 'photo',
   };
+
+  const cameraOptions = {
+    ...options,
+    cameraType: 'back',
+    quality: 0.3,
+    saveToPhotos: false,  // ✅ Add kiya
+  };
+
+  const handleResponse = async (response: any) => {
+    if (response.didCancel) {
+      console.log('User cancelled image picker');
+      return;
+    } else if (response.errorCode) {
+      console.log('Error: ', response.errorCode);
+      return;
+    }
+
+    try {
+      const imageUri = response?.assets[0]?.uri;
+      if (!imageUri) {
+        console.log('Image URI is missing!');
+        return;
+      }
+
+      const compressedImage = await Image.compress(imageUri, {
+        quality: 0.5,
+        maxWidth: 1000,
+        maxHeight: 1000,
+      });
+
+      const base64String = await RNFS.readFile(compressedImage, 'base64');
+      const source = `data:image/jpeg;base64,${base64String}`;
+      setImagePath(source);
+
+      console.log(`Image size after compression: ${(base64String.length / 1024).toFixed(2)} KB`);
+
+      switch (side) {
+        case 'AF':
+          setData({ ...data, AadharcardFrontcopy: `data:image/jpeg;base64,${base64String}` });
+          setAadharModal(true);
+          break;
+        case 'AB':
+          setData({ ...data, AadharcardBackcopy: `data:image/jpeg;base64,${base64String}` });
+          setAadharModal(true);
+          break;
+        case 'DL':
+          setDrivingLicense64(base64String);
+          setData({ ...data, DrivinglicenceCopy: `data:image/jpeg;base64,${base64String}` });
+          setImageModalVisible(true);
+          break;
+        case 'VID':
+          setVoterId64(base64String);
+          setImageModalVisible(true);
+          break;
+        case 'POV':
+          setPolicverification64(base64String);
+          setData({ ...data, Policverificationcopy: `data:image/jpeg;base64,${base64String}` });
+          setImageModalVisible(true);
+          break;
+        case 'PC':
+          setPanCard64(base64String);
+          setData({ ...data, Pancardcopy: `data:image/jpeg;base64,${base64String}` });
+          setImageModalVisible(true);
+          break;
+        case 'CH':
+          setCheck64(base64String);
+          setData({ ...data, CheckCopy: `data:image/jpeg;base64,${base64String}` });
+          setImageModalVisible(true);
+          break;
+        default:
+          console.log('Unknown side:', side);
+      }
+    } catch (error) {
+      console.error('Error during image processing: ', error);
+    }
+  };
+
+  // ✅ Camera permission check
+  const checkAndLaunchCamera = async () => {
+    const status = await check(PERMISSIONS.ANDROID.CAMERA);
+
+    if (status === RESULTS.BLOCKED) {
+      Alert.alert(
+        'Permission Required',
+        'Please allow camera access from settings',
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => openSettings().catch(() => {}) },
+        ]
+      );
+      return;
+    }
+
+    if (status !== RESULTS.GRANTED) {
+      const result = await request(PERMISSIONS.ANDROID.CAMERA);
+      if (result !== RESULTS.GRANTED) return;
+    }
+
+    launchCamera(cameraOptions, handleResponse);
+  };
+
+  Alert.alert(
+    'Select Image',
+    'key_choosean_21',
+    [
+      { text: 'Cancel' },
+      { text: 'Camera', onPress: checkAndLaunchCamera },                        // ✅
+      { text: 'Gallery', onPress: () => launchImageLibrary(options, handleResponse) },
+    ]
+  );
+};
 
   const navigation = useNavigation<any>();
 

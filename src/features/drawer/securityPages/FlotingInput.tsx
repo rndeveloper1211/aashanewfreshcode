@@ -9,33 +9,41 @@ const FlotingInput = ({
   label,
   onChangeTextCallback,
   autoFocus = false,
+  editable = true, // Added for clickable logic
   ...props
 }) => {
   const value = props.value;
-  const inputRef = useRef(null); // ✅ TextInput ka ref
+  const inputRef = useRef(null); // Ref for focusing
 
-  const hasValue = value !== undefined && value !== null && value.toString().length > 0;
-  const [isFocused, setIsFocused] = useState(autoFocus || hasValue);
-
-  const animatedFocused = useRef(new Animated.Value(hasValue || autoFocus ? 1 : 0)).current;
+  const [isFocused, setIsFocused] = useState(autoFocus || !!value);
+  const animatedFocused = useRef(new Animated.Value(isFocused ? 1 : 0)).current;
 
   useEffect(() => {
     Animated.timing(animatedFocused, {
-      toValue: isFocused || hasValue ? 1 : 0,
+      toValue: isFocused || (value && value.toString().length > 0) ? 1 : 0,
       duration: 150,
       useNativeDriver: false,
     }).start();
-  }, [isFocused, hasValue]);
+  }, [isFocused, value]);
 
-  const handleFocus = () => setIsFocused(true);
-
-  const handleBlur = () => {
-    if (!hasValue) setIsFocused(false);
+  const handleFocus = () => {
+    setIsFocused(true);
+    if (!value?.trim()) {
+      onChangeTextCallback?.("");
+    }
   };
 
-  // ✅ Poore container pe tap karne par input focus ho
-  const handleContainerPress = () => {
-    inputRef.current?.focus();
+  const handleBlur = () => {
+    if (!value?.toString().trim()) {
+      setIsFocused(false);
+    }
+  };
+
+  // Jab pura box click ho tab input focus ho
+  const focusInput = () => {
+    if (editable) {
+      inputRef.current?.focus();
+    }
   };
 
   const labelStyle = {
@@ -56,7 +64,7 @@ const FlotingInput = ({
     }),
     backgroundColor: animatedFocused.interpolate({
       inputRange: [0, 1],
-      outputRange: ["transparent", "white"],
+      outputRange: ["transparent", "rgba(255,255,255,1)"],
     }),
     paddingHorizontal: wScale(2),
     height: animatedFocused.interpolate({
@@ -68,28 +76,32 @@ const FlotingInput = ({
   };
 
   return (
-    // ✅ TouchableWithoutFeedback poore area ko tappable banata hai
-    <TouchableWithoutFeedback onPress={handleContainerPress}>
-      <View style={styles.main}>
+    <TouchableWithoutFeedback onPress={focusInput}>
+      {/* pointerEvents setup taaki dropdown case mein parent click pakad sake */}
+      <View style={styles.main} pointerEvents={editable ? "auto" : "none"}>
         <Animated.Text
           numberOfLines={1}
           ellipsizeMode="tail"
           style={[labelStyle, labelinputstyle]}
-          // ✅ pointerEvents hata diya — ab TouchableWithoutFeedback handle karega
+          pointerEvents="none"
         >
           {translate(label)}
         </Animated.Text>
 
         <TextInput
           {...props}
-          ref={inputRef} // ✅ ref attach kiya
+          ref={inputRef}
+          editable={editable}
+          numberOfLines={1}
+          ellipsizeMode="tail"
           style={[styles.input, inputstyle]}
           onFocus={handleFocus}
           onBlur={handleBlur}
+          placeholderTextColor="#000"
           onChangeText={onChangeTextCallback}
           autoFocus={autoFocus}
-          placeholder=""
           cursorColor="#000"
+          placeholder="" 
         />
       </View>
     </TouchableWithoutFeedback>

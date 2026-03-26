@@ -433,47 +433,40 @@ const [latestVersion, setLatestVersion] = useState([]);
             borderWidth: 0,
           },
         }} />
-     <Drawer.Screen name='Logout' component={Logout}
-          // listeners={{
-          //   drawerItemPress: (e) => {
-          //     e.preventDefault(); // Stop navigation
-          //     setLogoutVisible(true); // Open modal
-          //   },
-          // }}
-        options={{
-          headerShown: false,
+   <Drawer.Screen
+  name="Logout"
+  component={Logout} // dummy component
 
-          drawerLabel: translate("logout"),
-
-          drawerIcon: ({ focused, size }) => (
-            <>
-              <SvgXml
-                xml={Logoutimg}
-                width={wScale(25)}
-                height={hScale(25)}
-                style={styles.svgrightmargin} />
-              <SvgXml xml={Next} style={styles.rightimg} />
-            </>
-          ),
-          drawerItemStyle: {
-            borderWidth: 0,
-          },
-        }} />
+  options={{
+    headerShown: false,
+    drawerLabel: translate("logout"),
+    drawerIcon: ({ focused, size }) => (
+      <>
+        <SvgXml
+          xml={Logoutimg}
+          width={wScale(25)}
+          height={hScale(25)}
+          style={styles.svgrightmargin}
+        />
+        <SvgXml xml={Next} style={styles.rightimg} />
+      </>
+    ),
+  }}
+/>
     </Drawer.Navigator>
 
 
-    
+{/*     
     <Modal
       visible={logoutVisible}
       transparent
-      animationType="slide"
       onRequestClose={() => setLogoutVisible(false)}
     >
         <Logout
         onRequestClose={()=>setLogoutVisible(false)}
         
           />
-      </Modal>
+      </Modal> */}
       </>
   );
 };

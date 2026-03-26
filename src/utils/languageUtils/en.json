@@ -3444,5 +3444,223 @@
   "your QR is expired": "Your QR code has expired",
   "your_quick_access": "Your Quick Access",
   "⚠️ Error: ": "⚠️ Error: ",
-  "✕": "✕"
-}
+  "✕": "✕",
+  "banks found": "Banks Found",
+  "Last_5_recharges": "Last 5 Recharges",
+  "No_transactions_yet": "No Transactions Yet",
+  "fields": "Fields",
+  "Days": "Days",
+  "Other Difference": "Other Difference",
+  "Close Balance": "Closing Balance",
+  "DMT Add Account": "Add DMT Account",
+  "DMT Accounts": "DMT Accounts",
+  "Manage your fund transfer bank accounts": "Manage Your Fund Transfer Bank Accounts",
+  "Fund Received Report": "Fund Received Report",
+  "Select Method": "Select Method",
+  "Select Bank Account": "Select Bank Account",
+  "dashboard.Home": "Home",
+  "Hold release note": "Release Notes",
+  "recent transactions": "Recent Transactions",
+  "no transactions found": "No Transactions Found",
+  "sdf dfdssd": "N/A",
+  "QUICK ACCESS": "Quick Access",
+  "Since": "Since",
+  "Tap to complete your video KYC": "Tap to Complete Your Video KYC",
+  "Your video KYC is under review": "Your Video KYC is Under Review",
+  "Complete Your Profile": "Complete Your Profile",
+  "Set up your profile to access all features": "Set Up Your Profile to Access All Features",
+  "Click to Create Your Profile": "Click to Create Your Profile",
+  "Click to Create Video Kyc": "Click to Create Video KYC",
+  "select state": "Select State",
+  "Please complete your KYC verification to use Money Transfer services.": "Please Complete Your KYC Verification to Use Money Transfer Services.",
+  "benname": "Beneficiary Name",
+  "rem_tds": "TDS",
+  "Gst": "GST",
+  "try again": "Try Again",
+  "to complete the transaction.": "To Complete the Transaction."
+
+
+
+,
+  "AEPS Account": "AEPS Account",
+
+  "AEPS Services": "AEPS Services",
+
+  "Aadhaar Enabled Payment System": "Aadhaar Enabled Payment System",
+
+  "Aadhaar Enabled Payment System linked bank account": "Aadhaar Enabled Payment System linked bank account",
+
+  "Aadhar Number:": "Aadhar Number:",
+
+  "Access Restricted": "Access Restricted",
+
+  "Account Details": "Account Details",
+
+  "Action is Required": "Action is Required",
+
+  "Agency :": "Agency :",
+
+  "Amount in Words:": "Amount in Words:",
+
+  "Amount: ₹": "Amount: ₹",
+
+  "App Version : V": "App Version : V",
+
+  "Available Version: V": "Available Version: V",
+
+  "Balance": "Balance",
+
+  "Bank Details": "Bank Details",
+
+  "Bank RRN:": "Bank RRN:",
+
+  "Bank Reference No:": "Bank Reference No:",
+
+  "CONTACT US": "CONTACT US",
+
+  "CR ₹": "CR ₹",
+
+  "Choose a Service": "Choose a Service",
+
+  "City Name": "City Name",
+
+  "Click Scan Finger and place your finger on the scanner.": "Click Scan Finger and place your finger on the scanner.",
+
+  "Comm ₹": "Comm ₹",
+
+  "Connect your Biometric Device via OTG.": "Connect your Biometric Device via OTG.",
+
+  "Consumer Aadhaar": "Consumer Aadhaar",
+
+  "Contact No.:": "Contact No.:",
+
+  "Contact information is updated till": "Contact information is updated till",
+
+  "DR ₹": "DR ₹",
+
+  "Date & Time:": "Date & Time:",
+
+  "Date:": "Date:",
+
+  "Designation:": "Designation:",
+
+  "Device ID:": "Device ID:",
+
+  "Distributor Id:": "Distributor Id:",
+
+  "Downloading... %": "Downloading... %",
+
+  "Due Date:": "Due Date:",
+
+  "Email ID:": "Email ID:",
+
+  "Enter 6-digit OTP sent to your registered mobile": "Enter 6-digit OTP sent to your registered mobile",
+
+  "Face": "Face",
+
+  "Follow these steps:": "Follow these steps:",
+
+  "From Date:": "From Date:",
+
+  "Go To Purchase": "Go To Purchase",
+
+  "Hi, Please Complete Your Video KYC Now!": "Hi, Please Complete Your Video KYC Now!",
+
+  "IFSC Code:": "IFSC Code:",
+
+  "Latitude:": "Latitude:",
+
+  "Longitude:": "Longitude:",
+
+  "Message :": "Message :",
+
+  "Mobile Number:": "Mobile Number:",
+
+  "Monthly Payout Summary": "Monthly Payout Summary",
+
+  "My Own Pin Code -": "My Own Pin Code -",
+
+  "Name:": "Name:",
+
+  "No banks found": "No banks found",
+
+  "No transactions found": "No transactions found",
+
+  "Note:": "Note:",
+
+  "Operator:": "Operator:",
+
+  "PAY NOW ₹": "PAY NOW ₹",
+
+  "PROCEED": "PROCEED",
+
+  "PROTECTED BY SECURITY SYSTEM": "PROTECTED BY SECURITY SYSTEM",
+
+  "Payee:": "Payee:",
+
+  "Paying": "Paying",
+
+  "Please complete your verification to enable all AEPS features.": "Please complete your verification to enable all AEPS features.",
+
+  "Please match the number of Notes": "Please match the number of Notes",
+
+  "Please wait...": "Please wait...",
+
+  "Post Balance: ₹": "Post Balance: ₹",
+
+  "Pre Balance: ₹": "Pre Balance: ₹",
+
+  "Profile Picture Not Found - click for upload new": "Profile Picture Not Found - click for upload new",
+
+  "Receipt of": "Receipt of",
+
+  "Recharge Amount:": "Recharge Amount:",
+
+  "Ref No:": "Ref No:",
+
+  "Remain Amount: ₹": "Remain Amount: ₹",
+
+  "Remaining Receipts:": "Remaining Receipts:",
+
+  "Remaining: ₹": "Remaining: ₹",
+
+  "Retailer Info:": "Retailer Info:",
+
+  "SECURITY ALERT": "SECURITY ALERT",
+
+  "Select your device model from the dropdown below.": "Select your device model from the dropdown below.",
+
+  "Sender": "Sender",
+
+  "Sender Name:": "Sender Name:",
+
+  "Spent: ₹": "Spent: ₹",
+
+  "State Bank Of India": "State Bank Of India",
+
+  "Status:": "Status:",
+
+  "To Date:": "To Date:",
+
+  "Tokens No:": "Tokens No:",
+
+  "Total Receipt": "Total Receipt",
+
+  "Transaction Date:": "Transaction Date:",
+
+  "Transaction Status:": "Transaction Status:",
+
+  "Try a different search term": "Try a different search term",
+
+  "Try adjusting the date range or filters.": "Try adjusting the date range or filters.",
+
+  "UTR No:": "UTR No:",
+
+  "VPA:": "VPA:",
+
+  "Your Version: V": "Your Version: V",
+
+  "Your wallet balance is short by ₹": "Your wallet balance is short by ₹"
+
+} 
+

@@ -18,7 +18,7 @@ import DynamicButton from "../drawer/button/DynamicButton";
 import { hScale, wScale } from "../../utils/styles/dimensions";
 import { useDispatch, useSelector } from "react-redux";
 import { ALERT_TYPE, Dialog } from "react-native-alert-notification";
-import { openSettings } from "react-native-permissions";
+import { check, openSettings, PERMISSIONS, request, RESULTS } from "react-native-permissions";
 import { Video } from "react-native-compressor";
 import RNFS, { readFile } from "react-native-fs";
 import ShowLoader from "../../components/ShowLoder";
@@ -69,38 +69,53 @@ const VideoKYC = () => {
     requestCameraPermission();
   }, []);
 
-  const requestCameraPermission = useCallback(async () => {
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-        {
-          title: translate("Camera Permission"),
-          message: translate(
-            "key_thisappn_98",
-          ),
-          buttonPositive: translate("OK"),
-        },
-      );
+ const requestCameraPermission = useCallback(async () => {
+  try {
+    // iOS nahi hai toh sirf Android check karo
+    if (Platform.OS !== 'android') return true;
 
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-      } else {
-        Dialog.show({
-          type: ALERT_TYPE.WARNING,
-          title: translate("Permission Required"),
-          textBody: translate(
-            "key_pleasegra_85",
-          ),
-          button: translate("OK"),
-          onPressButton: () => {
-            Dialog.hide();
-            openSettings().catch(() => console.warn("cannot open settings"));
-          },
-        });
-      }
-    } catch (err) {
-      console.warn(err);
+    const currentStatus = await check(PERMISSIONS.ANDROID.CAMERA);
+
+    if (currentStatus === RESULTS.GRANTED) {
+      return true;
     }
-  }, []);
+
+    if (currentStatus === RESULTS.BLOCKED) {
+      Dialog.show({
+        type: ALERT_TYPE.WARNING,
+        title: translate('Permission Required'),
+        textBody: translate('key_pleasegra_85'),
+        button: translate('OK'),
+        onPressButton: () => {
+          Dialog.hide();
+          openSettings().catch(() => console.warn('cannot open settings'));
+        },
+      });
+      return false;
+    }
+
+    const result = await request(PERMISSIONS.ANDROID.CAMERA);
+
+    if (result === RESULTS.GRANTED) {
+      return true;
+    } else {
+      Dialog.show({
+        type: ALERT_TYPE.WARNING,
+        title: translate('Permission Required'),
+        textBody: translate('key_pleasegra_85'),
+        button: translate('OK'),
+        onPressButton: () => {
+          Dialog.hide();
+          openSettings().catch(() => console.warn('cannot open settings'));
+        },
+      });
+      return false;
+    }
+  } catch (err) {
+    console.warn(err);
+    return false;
+  }
+}, []);
 
   const changeLay = (lay) => {
     setFirstTap(lay === 1);
@@ -119,66 +134,101 @@ const VideoKYC = () => {
     }
   };
 
-  const openCamera = () => {
+
+const openCamera = async () => {
+  try {
+    // ✅ Step 1 — Permission check pehle
+    if (Platform.OS === 'android') {
+      const currentStatus = await check(PERMISSIONS.ANDROID.CAMERA);
+
+      if (currentStatus === RESULTS.BLOCKED) {
+        Dialog.show({
+          type: ALERT_TYPE.WARNING,
+          title: translate('Permission Required'),
+          textBody: translate('key_pleasegra_85'),
+          button: translate('OK'),
+          onPressButton: () => {
+            Dialog.hide();
+            openSettings().catch(() => console.warn('cannot open settings'));
+          },
+        });
+        return;
+      }
+
+      if (currentStatus !== RESULTS.GRANTED) {
+        const result = await request(PERMISSIONS.ANDROID.CAMERA);
+        if (result !== RESULTS.GRANTED) return;
+      }
+    }
+
+    // ✅ Step 2 — Camera launch karo
     const options = {
-      mediaType: "video",
-      videoQuality: "high",
+      mediaType: 'video',
+      videoQuality: 'high',
       durationLimit: 60,
+      saveToPhotos: false,  // ✅ Gallery mein save nahi hoga
     };
 
     launchCamera(options, async (response) => {
       if (response.didCancel) {
         setContent(true);
         setIsLoading2(false);
-        console.log("User cancelled video picker");
-      } else if (response.errorCode) {
-        console.log("VideoPicker Error: ", response.errorMessage);
-      } else {
-        setLoader(true);
-        setContent(false);
+        return;
+      }
+
+      if (response.errorCode) {
+        console.log('Camera Error:', response.errorMessage);
         setIsLoading2(false);
-        const videoUri = await response.assets[0].uri;
+        return;
+      }
 
-        console.log("Video URI: ", videoUri);
+      setLoader(true);
+      setContent(false);
+      setIsLoading2(false);
 
-        try {
-          const result = await Video.compress(
-            videoUri,
-            {
-              compressionMethod: "manual",
-            },
-            (progress) => {
-              console.log("Compression Progress: ", progress);
-              // Show toast message with progress
-              //ToastAndroid.show(`Compression Progress: ${progress}%`, ToastAndroid.SHORT);
-            },
-          );
+      // ✅ await hata diya — uri simple string hai
+      const videoUri = response.assets[0].uri;
+      console.log('Video URI:', videoUri);
 
-          setPlayVideo(videoUri);
-          console.log("Compression Result: ", result);
+      try {
+        const result = await Video.compress(
+          videoUri,
+          { compressionMethod: 'manual' },
+          (progress) => {
+            console.log('Compression Progress:', progress);
+          },
+        );
 
-          const compressedVideoPath = result;
-          const base64Video = await convertVideoToBase64(compressedVideoPath);
+        setPlayVideo(videoUri);
+        console.log('Compression Result:', result);
 
-          setIsLoading(true);
-          setBase64Video(base64Video);
-          setIsLoading(false);
+        const compressedVideoPath = result;
+        const base64Video = await convertVideoToBase64(compressedVideoPath);
 
-          ToastAndroid.show(
-            translate("Video Compression Complete!"),
-            ToastAndroid.LONG,
-          );
-          setLoader(false);
-        } catch (error) {
-          console.error("Error converting video to base64: ", error);
-          ToastAndroid.show(
-            translate("Error during video compression!"),
-            ToastAndroid.LONG,
-          );
-        }
+        setIsLoading(true);
+        setBase64Video(base64Video);
+        setIsLoading(false);
+
+        ToastAndroid.show(
+          translate('Video Compression Complete!'),
+          ToastAndroid.LONG,
+        );
+        setLoader(false);
+
+      } catch (error) {
+        console.error('Error converting video to base64:', error);
+        setLoader(false);  // ✅ Error pe bhi loader band karo
+        ToastAndroid.show(
+          translate('Error during video compression!'),
+          ToastAndroid.LONG,
+        );
       }
     });
-  };
+
+  } catch (err) {
+    console.warn(err);
+  }
+};
   const dispatch = useDispatch();
 
   const uploadKYCVideo = async (video) => {

@@ -1,4 +1,4 @@
-package com.digital2pay;
+package com.maxuspay;
 
 import android.app.Activity;
 import android.content.Intent;

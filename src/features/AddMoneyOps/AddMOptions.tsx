@@ -40,7 +40,6 @@ import ShowLoader from "../../components/ShowLoder";
 import FontAwesome6 from "react-native-vector-icons/FontAwesome6";
 import AllBalance from "../../components/AllBalance";
 import ShowLoaderBtn from "../../components/ShowLoaderBtn";
-import { backgroundUpload } from "react-native-compressor";
 import { NativeModules } from "react-native";
 import { translate } from "../../utils/languageUtils/I18n";
 import AsyncStorage from "@react-native-async-storage/async-storage";

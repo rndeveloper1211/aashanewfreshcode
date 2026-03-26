@@ -12,18 +12,29 @@ react {
 def enableProguardInReleaseBuilds = true
 
 android {
-    namespace "com.digital2pay"
-    compileSdk 34
+    namespace "com.maxuspay"
+    compileSdk 35
 
     defaultConfig {
-        applicationId "com.digital2pay"
+        applicationId "com.maxuspay"
         minSdk 24
-        targetSdk 34
-        versionCode 1   // 🔥 IMPORTANT: Play Store upload me increment karna
-        versionName "0.0.1"
+        targetSdk 35
+        versionCode 8         // Version update for 0.0.6
+        versionName "0.0.8"   
         multiDexEnabled true
+
+        ndk {
+            abiFilters "armeabi-v7a", "arm64-v8a"
+        }
+
+        // 16 KB Page Alignment Support (Zaroori for Android 15)
+      externalNativeBuild {
+    cmake {
+        arguments "-DANDROID_STL=c++_shared",
+                  "-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON" // Android 15 flag
     }
- 
+}
+    }
 
     signingConfigs {
         release {
@@ -49,29 +60,27 @@ android {
         }
     }
 
-    packagingOptions {
-        resources {
-            excludes += '/META-INF/{AL2.0,LGPL2.1}'
-            excludes += 'META-INF/*.kotlin_module'
-        }
-jniLibs {
+   packagingOptions {
+    resources {
+        excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        excludes += 'META-INF/*.kotlin_module'
+    }
+    jniLibs {
+        useLegacyPackaging = false
+
         pickFirsts += [
-            'lib/x86/libc++_shared.so',
-            'lib/x86_64/libc++_shared.so',
-            'lib/armeabi-v7a/libc++_shared.so',
-            'lib/arm64-v8a/libc++_shared.so'
+            '**/libc++_shared.so'
         ]
+
+        // 🔥 ADD THIS LINE
+        excludes += ['**/libandroidlame.so']
     }
-      //  pickFirst 'lib/x86/libc++_shared.so'
-       // pickFirst 'lib/x86_64/libc++_shared.so'
-       // pickFirst 'lib/armeabi-v7a/libc++_shared.so'
-       // pickFirst 'lib/arm64-v8a/libc++_shared.so'
-    }
+}
 
     buildFeatures {
+        prefab true
         buildConfig true
         viewBinding true
-
     }
 }
 
@@ -85,23 +94,27 @@ configurations.all {
 }
 
 dependencies {
+    implementation 'com.google.android.play:integrity:1.4.0'
     implementation 'com.google.android.gms:play-services-location:21.0.1'
-
+    implementation "androidx.activity:activity:1.9.0"  
+    implementation "androidx.core:core-ktx:1.13.1"
     implementation("com.facebook.react:react-android")
 
-    // Local AARs
-implementation files('libs/pspwDmt.aar')
-implementation files('libs/pw_ekyc.aar')
+    // Local AARs (Fintech SDKs)
+    implementation files('libs/pspwDmt.aar')
+    implementation files('libs/pw_ekyc.aar')
 
     // PayU SDK
     implementation('in.payu:payu-checkout-pro:1.8.2') {
         exclude group: 'org.json', module: 'json'
         exclude group: 'com.payu.crashlogger', module: 'crashlogger'
+        exclude group: 'com.google.android.gms', module: 'play-services-safetynet'
     }
 
     // CredoPay SDK
     implementation('in.credopay.payment.sdk:vm30-payment-sdk:3.0.20') {
         exclude module: 'retrofit'
+        exclude group: 'com.google.android.gms', module: 'play-services-safetynet'
     }
 
     implementation 'com.squareup.retrofit2:converter-scalars:2.9.0'
@@ -114,7 +127,6 @@ implementation files('libs/pw_ekyc.aar')
     implementation "androidx.appcompat:appcompat:1.6.1"
     implementation "androidx.core:core-splashscreen:1.0.1"
     implementation "androidx.multidex:multidex:2.0.1"
-
     implementation "androidx.startup:startup-runtime:1.1.1"
 
     if (hermesEnabled.toBoolean()) {

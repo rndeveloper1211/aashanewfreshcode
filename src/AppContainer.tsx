@@ -44,7 +44,7 @@ import NetInfo from '@react-native-community/netinfo';
 import ConnectionLost from './components/ConnectionLost';
 import { translate } from './utils/languageUtils/I18n';
 import BlockedMessageAnimated from './features/dashboard/components/Pkgmiss';
-
+import firestore from '@react-native-firebase/firestore';
 export const AppContainer = () => {
   const { LocationModule } = NativeModules;
   const dispatch = useDispatch();
@@ -147,6 +147,8 @@ export const AppContainer = () => {
     return () => subscription.remove();
 
   }, [authToken]);
+
+  
   const checkGPSOnResume = async () => {
     try {
 
@@ -177,7 +179,29 @@ export const AppContainer = () => {
       console.log("Resume Error", e);
     }
   };
+const [allowed, setAllowed] = useState(null);
 
+  useEffect(() => {
+    // Reference to your specific document
+    const subscriber = firestore()
+      .collection('appAccess')
+      .doc('appAccess')
+      .onSnapshot(documentSnapshot => {
+        if (documentSnapshot.exists) {
+
+console.log('====================================');
+console.log(documentSnapshot.exists);
+console.log('====================================');
+          // Get the 'isAllowed' field value
+          const status = documentSnapshot.data().isAllowed;
+          setAllowed(status);
+          console.log('User allowed status: ', status);
+        }
+      });
+
+    // Stop listening for updates when no longer required
+    return () => subscriber();
+  }, []);
   const initAppAndLocation = async () => {
 
     let granted = false;
@@ -374,7 +398,7 @@ const bundleId = DeviceInfo.getBundleId(); // Get it locally inside fetchAppData
     if (connectionLost) {
       return <ConnectionLost onRetry={() => console.log('retry')} />
     }
-    if (!update) {
+    if (!update && allowed == true) {
       return <Updatebox isVer={undefined} loading={undefined} isplay={false} />;
     }
 

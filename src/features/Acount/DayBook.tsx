@@ -1,508 +1,484 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, Button, FlatList, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Platform,
+  FlatList,
+} from 'react-native';
+import { useSelector } from 'react-redux';
+import LinearGradient from 'react-native-linear-gradient';
+
+import { translate } from '../../utils/languageUtils/I18n';
 import useAxiosHook from '../../utils/network/AxiosClient';
 import { APP_URLS } from '../../utils/network/urls';
 import { hScale, wScale } from '../../utils/styles/dimensions';
 import AppBarSecond from '../drawer/headerAppbar/AppBarSecond';
-import LinearGradient from 'react-native-linear-gradient';
-import Calendarsvg from '../drawer/svgimgcomponents/Calendarsvg';
-import SearchIcon from '../drawer/svgimgcomponents/Searchicon';
-import { useSelector } from 'react-redux';
 import { RootState } from '../../reduxUtils/store';
 import DateRangePicker from '../../components/DateRange';
-import { translate } from '../../utils/languageUtils/I18n';
-import ShowLoader from '../../components/ShowLoder';
-import isEmpty from 'lodash/isEmpty';
 import NoDatafound from '../drawer/svgimgcomponents/Nodatafound';
+import SkeletonCard from '../../components/SkeletonCard';
 
-const DayBookReport = () => {
-  const { colorConfig, IsDealer } = useSelector((state: RootState) => state.userInfo)
-  const color1 = `${colorConfig.secondaryColor}20`
-const [loading,setIsLoading]= useState(true)
-  const [inforeport, setInforeport] = useState([]);
-  const [open, setOpen] = useState(false);
-  const navigation = useNavigation();
-  const { get, post } = useAxiosHook();
-  const colorScheme = useColorScheme();
-  const [days, setDays] = useState([])
-  const [selectedDate, setSelectedDate] = useState({
-    from: new Date().toISOString().split('T')[0],
-    to: new Date().toISOString().split('T')[0],
-  });
-  const [selectedStatus, setSelectedStatus] = useState('ALL');
-  useEffect(() => {
-    DayE(selectedDate.from, selectedDate.to);
-  }, []);
+// ─── Skeleton List (same as DayLedgerReport) ─────────────────────────────────
 
-  const onDateChange = (date) => {
-    setSelectedDate(date);
-    setOpen(false);
-  };
+const SkeletonList = () => (
+  <View style={styles.skeletonWrap}>
+    {[...Array(6)].map((_, i) => (
+      <SkeletonCard key={i} />
+    ))}
+  </View>
+);
 
-const DayE = async (from, to) => {
-  setIsLoading(true);
-  try {
-    const formattedFrom = new Date(from).toISOString().split('T')[0];
-    const formattedTo = new Date(to).toISOString().split('T')[0];
+// ─── Financial Row ────────────────────────────────────────────────────────────
 
-    const url = `${APP_URLS.daybook}from=${formattedFrom}&to=${formattedTo}`;
+const FinancialRow = React.memo(({
+  label,
+  value,
+  highlight = false,
+}: {
+  label: string;
+  value: number;
+  highlight?: boolean;
+}) => (
+  <View style={[styles.finRow, highlight && styles.finRowHighlight]}>
+    <Text style={[styles.finLabel, highlight && styles.finLabelBold]}>{label}</Text>
+    <Text style={[styles.finValue, highlight && styles.finValueBold]}>₹{value}</Text>
+  </View>
+));
 
-    const response = await get({ url });
+// ─── Retailer Card ────────────────────────────────────────────────────────────
 
-    console.log('DAYBOOK RESPONSE', response);
-
-    // ✅ FIXED HERE
-    setInforeport(response?.data || []);
-    setDays({ days: Number(response?.durations || 0) });
-
-  } catch (error) {
-    console.error('Error fetching data:', error);
-    setInforeport([]);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-
-  const getDateDifference = (date1, date2) => {
-    const d1 = new Date(date1);
-    const d2 = new Date(date2);
-
-    const timeDiff = Math.abs(d2 - d1);
-
-    const days = Math.floor(timeDiff / (1000 * 3600 * 24));
-
-    const years = Math.floor(days / 365);
-    const months = Math.floor((days % 365) / 30);
-
-    return {
-      days,
-      years,
-      months
-    };
-  };
-
-
-
-
-
-  const isDarkTheme = colorScheme === 'dark';
-  const styles = getStyles(isDarkTheme);
-  const FinancialRow = ({ label, value }) => (
-
-    <View style={styles.financialRow}>
-
-      <Text style={styles.label}>{label}</Text>
-
-      <Text style={styles.value}>{`\u{20B9} ${value}`}</Text>
-
-    </View>
-
-  );
-
-const renderItem = ({ item }) => {
-  const {
-    openbal,
-    RCH,
-    PURCHASE,
-    AEPS,
-    IMPS,
-    PAN,
-    OLDDAYREFUND,
-    OLDDAYFAILED,
-    DIFF,
-    closebal,
-  } = item;
-
-  const fromDate = new Date(selectedDate.from).toISOString().split('T')[0];
-  const toDate = new Date(selectedDate.to).toISOString().split('T')[0];
-
-  const diffColor = DIFF < 0 ? '#d32f2f' : '#2e7d32';
+const RetailerCard = React.memo(({
+  item, fromDate, toDate, days, themeColor, secondaryColor,
+}: {
+  item: any; fromDate: string; toDate: string;
+  days: number; themeColor: string; secondaryColor: string;
+}) => {
+  const diffColor = item.DIFF < 0 ? '#B91C1C' : '#15803D';
+  const diffBg    = item.DIFF < 0 ? '#FEE2E2' : '#DCFCE7';
 
   return (
-    <View
-      style={{
-        marginHorizontal: 14,
-        marginVertical: 10,
-        borderRadius: 16,
-        backgroundColor: '#fff',
-        shadowColor: '#000',
-        shadowOpacity: 0.1,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 4 },
-        elevation: 4,
-      }}
-    >
-      {/* 🔹 HEADER */}
-      <View
-        style={{
-          backgroundColor: color1 || '#5e35b1',
-          borderTopLeftRadius: 16,
-          borderTopRightRadius: 16,
-          padding: 14,
-        }}
-      >
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-          }}
-        >
-          <View>
-            <Text style={{ color: colorConfig.primaryColor, fontSize: 12 }}>
-              {translate('From Date')}
-            </Text>
-            <Text style={{ color: colorConfig.secondaryColor, fontSize: 14, fontWeight: '600' }}>
-              {fromDate}
-            </Text>
-          </View>
-
-          <View>
-            <Text style={{ color: colorConfig.labelColor, fontSize: 12, textAlign: 'center' }}>
-              {translate('Duration')}
-            </Text>
-            <Text
-              style={{
-                color:colorConfig.secondaryButtonColor,
-                fontSize: 15,
-                fontWeight: '700',
-                textAlign: 'center',
-              }}
-            >
-              {days.days} Days
-            </Text>
-          </View>
-
-          <View>
-            <Text style={{ color:  colorConfig.primaryColor, fontSize: 12 }}>
-              {translate('To Date')}
-            </Text>
-            <Text style={{ color:  colorConfig.secondaryColor, fontSize: 14, fontWeight: '600' }}>
-              {toDate}
-            </Text>
-          </View>
-        </View>
-      </View>
-
-      {/* 🔹 BODY */}
-      <View style={{ padding: 16 }}>
-        {/* Always show all rows, even if value is 0 */}
-        <FinancialRow label="Opening Balance" value={openbal} />
-        <FinancialRow label="Recharge" value={RCH} />
-        <FinancialRow label="Purchase" value={PURCHASE} />
-        <FinancialRow label="AEPS" value={AEPS} />
-        <FinancialRow label="IMPS" value={IMPS} />
-        <FinancialRow label="PAN" value={PAN} />
-        <FinancialRow label="Old Day Refund" value={OLDDAYREFUND} />
-        <FinancialRow label="Old Day Failed" value={OLDDAYFAILED} />
-
-        {/* 🔹 DIFFERENCE - Show even if 0, as per user request */}
-        <View
-          style={{
-            flexDirection: 'row',
-            justifyContent: 'space-between',
-            marginTop: 10,
-            paddingVertical: 8,
-            paddingHorizontal: 10,
-            backgroundColor: diffColor + '15',
-            borderRadius: 10,
-          }}
-        >
-          <Text style={{ fontSize: 14, color: '#555' }}>{translate("Other_Difference")}</Text>
-          <Text
-            style={{
-              fontSize: 14,
-              fontWeight: '700',
-              color: diffColor,
-            }}
-          >
-            ₹ {DIFF}
-          </Text>
-        </View>
-
-        <FinancialRow label="Close Balance" value={closebal} />
-      </View>
-    </View>
-  );
-};
-
-  return (
-    <View style={styles.main}>
-      {loading &&<ShowLoader/>}
-      <AppBarSecond title={'Day Book'} />
+    <View style={styles.retailerCard}>
       <LinearGradient
-        colors={[colorConfig.primaryColor, colorConfig.secondaryColor]}>
-
-        <DateRangePicker
-
-          onDateSelected={(from, to) => setSelectedDate({ from, to })}
-
-          SearchPress={(from, to, status) => DayE(from, to)}
-
-          status={selectedStatus}
-
-          setStatus={setSelectedStatus}
-
-          isStShow={false}
-
-          isshowRetailer={false}
-          retailerID={(id) => { console.log(id) }}
-        />
+        colors={[themeColor, secondaryColor]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.retailerCardHeader}
+      >
+        <View style={styles.dateBlock}>
+          <Text style={styles.dateBlockLabel}>{translate("From Date")}</Text>
+          <Text style={styles.dateBlockValue}>{fromDate}</Text>
+        </View>
+        <View style={styles.durationBlock}>
+          <Text style={styles.durationLabel}>{translate("Duration")}</Text>
+          <Text style={styles.durationValue}>{days}</Text>
+          <Text style={styles.durationUnit}>{translate("Days")}</Text>
+        </View>
+        <View style={[styles.dateBlock, { alignItems: 'flex-end' }]}>
+          <Text style={styles.dateBlockLabel}>{translate("To Date")}</Text>
+          <Text style={styles.dateBlockValue}>{toDate}</Text>
+        </View>
       </LinearGradient>
-      <View style={styles.container}>
 
-        {!IsDealer ? <FlatList
-    ListEmptyComponent={
-            
-            
-            <NoDatafound/>
-          }
-          data={inforeport}
+      <View style={styles.retailerCardBody}>
+        <FinancialRow label={translate("Opening Balance")} value={item.openbal}      highlight />
+        <FinancialRow label={translate("Recharge")}        value={item.RCH} />
+        <FinancialRow label={translate("Purchase")}        value={item.PURCHASE} />
+        <FinancialRow label={translate("AEPS")}            value={item.AEPS} />
+        <FinancialRow label={translate("IMPS")}            value={item.IMPS} />
+        <FinancialRow label={translate("PAN")}             value={item.PAN} />
+        <FinancialRow label={translate("Old Day Refund")}  value={item.OLDDAYREFUND} />
+        <FinancialRow label={translate("Old Day Failed")}  value={item.OLDDAYFAILED} />
 
-          renderItem={renderItem}
+        <View style={[styles.diffRow, { backgroundColor: diffBg }]}>
+          <Text style={styles.diffLabel}>{translate("Other Difference")}</Text>
+          <Text style={[styles.diffValue, { color: diffColor }]}>₹{item.DIFF}</Text>
+        </View>
 
-          keyExtractor={(item, index) => index.toString()}
-
-          contentContainerStyle={styles.listContainer}
-
-        /> : 
-        
-        <FlatList
-          data={inforeport}
-          keyExtractor={(item) => item.Type}
-          ListEmptyComponent={
-            
-            
-            <NoDatafound/>
-          }
-          renderItem={({ item }) => (
-            <View style={styles.reportItem}>
-              <View style={styles.reportHeader}>
-                <View style={styles.typeContainer}>
-                  <Text style={styles.typeLabel}>{translate("Particular")}</Text>
-                  <Text style={styles.type}>{item.Type}</Text>
-                </View>
-                <View style={styles.earnContainer}>
-                  <Text style={styles.earnLabel}>{translate("Earn")}</Text>
-                  <Text style={styles.earnAmount}>{`\u20B9 ${item.Amount}`}</Text>
-                </View>
-              </View>
-              <View style={styles.reportFooter}>
-                <View style={styles.footerItem}>
-                  <Text style={styles.footerLabel}>{translate("Total_Success")}</Text>
-                  <Text style={styles.footerAmount}>{`\u20B9 ${item.TotalSuccess}`}</Text>
-                </View>
-                <View style={styles.footerItem}>
-                  <Text style={styles.footerLabel}>{translate("Total_Pending")}</Text>
-                  <Text style={styles.footerAmount}>{`\u20B9 ${item.TotalPending}`}</Text>
-                </View>
-                <View style={styles.footerItem}>
-                  <Text style={styles.footerLabel}>{translate("Total_Failed")}</Text>
-                  <Text style={styles.footerAmount}>{`\u20B9 ${item.TotalFailed}`}</Text>
-                </View>
-              </View>
-            </View>
-          )}
-        />}
-
+        <FinancialRow label={translate("Close Balance")} value={item.closebal} highlight />
       </View>
     </View>
   );
-};
-
-const getStyles = (isDarkTheme) => StyleSheet.create({
-  main: {
-    flex: 1,
-    backgroundColor: isDarkTheme ? '#121212' : '#f0f0f0',
-  },
-  container: {
-    paddingTop: wScale(10),
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: wScale(10),
-    borderRadius: 5,
-  },
-  datePickerButton: {
-    paddingHorizontal: wScale(10),
-    borderRadius: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: wScale(1),
-    borderColor: '#fff',
-
-  },
-  searchButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: wScale(15),
-    backgroundColor: '#007bff',
-    borderRadius: 5,
-    borderColor: '#fff',
-    borderWidth: wScale(1),
-
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: wScale(14),
-  },
-
-
-  title: {
-    color: '#fff',
-    fontSize: 20,
-  },
-  datePicker: {
-    backgroundColor: '#03dac6',
-    padding: 10,
-    borderRadius: 5,
-  },
-  dateText: {
-    color: '#fff',
-    fontSize: 16,
-  },
-  loader: {
-    textAlign: 'center',
-    marginTop: 20,
-    fontSize: 18,
-  },
-  reportItem: {
-    backgroundColor: isDarkTheme ? '#1f1f1f' : '#fff',
-    padding: 10,
-    borderRadius: 5,
-    marginBottom: 10,
-  },
-  reportHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  typeContainer: {
-    flex: 1,
-    marginLeft: 10,
-  },
-  typeLabel: {
-    fontSize: 10,
-    color: isDarkTheme ? '#fff' : '#000',
-  },
-  type: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: isDarkTheme ? '#fff' : '#000',
-  },
-  earnContainer: {
-    alignItems: 'flex-end',
-  },
-  earnLabel: {
-    fontSize: 10,
-    color: isDarkTheme ? '#fff' : '#000',
-  },
-  earnAmount: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: isDarkTheme ? '#fff' : '#000',
-  },
-  reportFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 10,
-  },
-  footerItem: {
-    alignItems: 'center',
-  },
-  footerLabel: {
-    fontSize: 12,
-    color: isDarkTheme ? '#fff' : '#000',
-  },
-  footerAmount: {
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: isDarkTheme ? '#fff' : '#000',
-  },
-
-  /////////////////
-  listContainer: {
-
-    padding: 10,
-
-  },
-
-  card: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    paddingHorizontal:wScale(10),
-    paddingVertical:hScale(5)
-   
-  },
-card2: {
-    backgroundColor: 'white',
-    borderRadius: 8,
-    marginBottom: 10,
-    shadowColor: '#000',
-    shadowOffset: {
-      width: 0,
-      height: 1,
-    },
-    shadowOpacity: 0.2,
-    shadowRadius: 1.41,
-    elevation: 2,
-  },
-
-  dateContainer: {
-    marginBottom: 10,
-
-  },
-  dateRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-  },
-  dateColumn: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  label: {
-    fontSize: 12,
-    color: '#333',
-  },
-  value: {
-    fontSize: 14,
-    fontWeight: 'bold',
-  },
-
-  datevalue: {
-    fontSize: 16,
-    fontWeight: 'bold',
-  },
-  financialRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    paddingVertical: 5,
-    borderBottomWidth: 1,
-    borderBottomColor: '#ccc',
-  },
-  differenceRow: {
-    paddingVertical: 5,
-    paddingHorizontal: 5,
-    flexDirection: 'row',
-    justifyContent: 'space-between'
-  },
-
-  differenceVisible: {
-
-    backgroundColor: 'rgba(255, 0, 0, 0.5)',
-    borderRadius:4
-
-  },
-
-  differenceHidden: {
-
-    backgroundColor: 'transparent',
-
-  },
 });
 
+// ─── Dealer Card ──────────────────────────────────────────────────────────────
+
+const DealerCard = React.memo(({ item, themeColor }: { item: any; themeColor: string }) => (
+  <View style={styles.dealerCard}>
+    <View style={[styles.dealerAccent, { backgroundColor: themeColor }]} />
+    <View style={styles.dealerBody}>
+      <View style={styles.dealerHeaderRow}>
+        <View>
+          <Text style={styles.particularLabel}>{translate("Particular")}</Text>
+          <Text style={[styles.dealerType, { color: themeColor }]}>{item.Type}</Text>
+        </View>
+        <View style={styles.earnCol}>
+          <Text style={styles.particularLabel}>{translate("Earn")}</Text>
+          <Text style={[styles.earnAmount, { color: themeColor }]}>₹{item.Amount}</Text>
+        </View>
+      </View>
+
+      <View style={styles.dealerDivider} />
+
+      <View style={styles.dealerStatsRow}>
+        <View style={styles.dealerStat}>
+          <Text style={styles.statLabel}>{translate("Total Success")}</Text>
+          <Text style={[styles.statValue, { color: '#15803D' }]}>₹{item.TotalSuccess}</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.dealerStat}>
+          <Text style={styles.statLabel}>{translate("Total Pending")}</Text>
+          <Text style={[styles.statValue, { color: '#92400E' }]}>₹{item.TotalPending}</Text>
+        </View>
+        <View style={styles.statDivider} />
+        <View style={styles.dealerStat}>
+          <Text style={styles.statLabel}>{translate("Total Failed")}</Text>
+          <Text style={[styles.statValue, { color: '#B91C1C' }]}>₹{item.TotalFailed}</Text>
+        </View>
+      </View>
+    </View>
+  </View>
+));
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+const DayBookReport = () => {
+  const { colorConfig, IsDealer } = useSelector((state: RootState) => state.userInfo);
+  const primary:   string = colorConfig?.primaryColor   || '#0A84FF';
+  const secondary: string = colorConfig?.secondaryColor || '#0055FF';
+
+  const { get } = useAxiosHook();
+  const [loading,        setLoading]        = useState(false);
+  const [inforeport,     setInforeport]     = useState<any[]>([]);
+  const [days,           setDays]           = useState(0);
+  const [selectedDate,   setSelectedDate]   = useState({
+    from: new Date().toISOString().split('T')[0],
+    to:   new Date().toISOString().split('T')[0],
+  });
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
+
+const fetchData = useCallback(async (from: string, to: string) => {
+  setLoading(true);
+  try {
+    const formattedFrom = new Date(from).toISOString().split('T')[0];
+    const formattedTo   = new Date(to).toISOString().split('T')[0];
+    const url = `${APP_URLS.daybook}from=${formattedFrom}&to=${formattedTo}`;
+
+    // ✅ Logic: API call aur 2.5 second ka wait ek sath shuru honge
+    // Dono khatam hone ke baad hi aage badhega
+    const [response] = await Promise.all([
+      get({ url }),
+      new Promise(resolve => setTimeout(resolve, 2500)) // 2.5 seconds delay
+    ]);
+
+    setInforeport(response?.data || []);
+    setDays(Number(response?.durations || 0));
+  } catch (e) {
+    console.error('DayBookReport fetch error:', e);
+    setInforeport([]);
+  } finally {
+    setLoading(false); 
+  }
+}, [get]); 
+  useEffect(() => {
+    fetchData(selectedDate.from, selectedDate.to);
+  }, []);
+
+  const fromDate = new Date(selectedDate.from).toISOString().split('T')[0];
+  const toDate   = new Date(selectedDate.to).toISOString().split('T')[0];
+
+  const renderRetailer = useCallback(
+    ({ item }: { item: any }) => (
+      <RetailerCard
+        item={item} fromDate={fromDate} toDate={toDate}
+        days={days} themeColor={primary} secondaryColor={secondary}
+      />
+    ),
+    [fromDate, toDate, days, primary, secondary],
+  );
+
+  const renderDealer = useCallback(
+    ({ item }: { item: any }) => <DealerCard item={item} themeColor={primary} />,
+    [primary],
+  );
+
+  return (
+    <View style={styles.root}>
+
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={[primary, secondary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientHeader}
+      >
+        <AppBarSecond
+          title={translate("Day Book")}
+          titlestyle={styles.appBarTitle}
+        />
+        <DateRangePicker
+          onDateSelected={(from, to) => setSelectedDate({ from, to })}
+          SearchPress={(from, to) => fetchData(from, to)}
+          status={selectedStatus}
+          setStatus={setSelectedStatus}
+          isStShow={false}
+          isshowRetailer={false}
+          retailerID={() => {}}
+          setSearchnumber={() => {}}
+          cmsStatu={false}
+          onlyFromDate={false}
+        />
+      </LinearGradient>
+
+      {/* Body — same 3-state pattern as DayLedgerReport */}
+      <View style={styles.body}>
+
+        {/* ── Loading: skeleton top-aligned ── */}
+        {loading && <SkeletonList />}
+
+        {/* ── Empty state ── */}
+        {!loading && inforeport.length === 0 && (
+          <View style={styles.emptyWrap}>
+            <NoDatafound />
+          </View>
+        )}
+
+        {/* ── Data ── */}
+        {!loading && inforeport.length > 0 && (
+          IsDealer ? (
+            <FlatList
+              data={inforeport}
+              renderItem={renderDealer}
+              keyExtractor={item => item.Type}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+            />
+          ) : (
+            <FlatList
+              data={inforeport}
+              renderItem={renderRetailer}
+              keyExtractor={(_, i) => i.toString()}
+              contentContainerStyle={styles.listContent}
+              showsVerticalScrollIndicator={false}
+            />
+          )
+        )}
+
+      </View>
+    </View>
+  );
+};
+
 export default DayBookReport;
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+  },
+  gradientHeader: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+      },
+      android: { elevation: 6 },
+    }),
+  },
+  appBarTitle: {
+    color: '#FFF',
+    fontWeight: '700',
+  },
+  body: {
+    flex: 1,
+  },
+
+  // ── Skeleton: top-aligned, same padding as list ───────────────────────────
+  skeletonWrap: {
+    padding: wScale(14),
+    paddingBottom: hScale(32),
+  },
+
+  // ── Empty: vertically centered ────────────────────────────────────────────
+  emptyWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: hScale(10),
+  },
+  emptyText: {
+    fontSize: wScale(14),
+    color: '#8E8E93',
+    fontWeight: '500',
+  },
+
+  listContent: {
+    padding: wScale(14),
+    paddingBottom: hScale(32),
+  },
+
+  // ── Retailer Card ─────────────────────────────────────────────────────────
+  retailerCard: {
+    backgroundColor: '#FFF',
+    borderRadius: wScale(20),
+    overflow: 'hidden',
+    marginBottom: hScale(16),
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+      },
+      android: { elevation: 4 },
+    }),
+  },
+  retailerCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: wScale(18),
+    paddingVertical: hScale(14),
+  },
+  dateBlock: { gap: hScale(3) },
+  dateBlockLabel: {
+    fontSize: wScale(10),
+    color: 'rgba(255,255,255,0.75)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  dateBlockValue: {
+    fontSize: wScale(13),
+    color: '#FFF',
+    fontWeight: '700',
+  },
+  durationBlock: {
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    paddingHorizontal: wScale(16),
+    paddingVertical: hScale(8),
+    borderRadius: wScale(12),
+    gap: hScale(1),
+  },
+  durationLabel: {
+    fontSize: wScale(9),
+    color: 'rgba(255,255,255,0.75)',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  durationValue: {
+    fontSize: wScale(22),
+    color: '#FFF',
+    fontWeight: '800',
+    lineHeight: hScale(26),
+  },
+  durationUnit: {
+    fontSize: wScale(9),
+    color: 'rgba(255,255,255,0.8)',
+    fontWeight: '600',
+  },
+  retailerCardBody: {
+    padding: wScale(16),
+    gap: hScale(1),
+  },
+  finRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: hScale(8),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F2F2F7',
+  },
+  finRowHighlight: {
+    backgroundColor: '#F8F8FF',
+    paddingHorizontal: wScale(8),
+    borderRadius: wScale(8),
+    borderBottomWidth: 0,
+    marginVertical: hScale(2),
+  },
+  finLabel: {
+    fontSize: wScale(13),
+    color: '#3C3C43',
+    fontWeight: '500',
+  },
+  finLabelBold: { fontWeight: '700', color: '#1C1C1E' },
+  finValue: {
+    fontSize: wScale(13),
+    color: '#1C1C1E',
+    fontWeight: '600',
+  },
+  finValueBold: { fontWeight: '800', fontSize: wScale(14) },
+  diffRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: hScale(10),
+    paddingHorizontal: wScale(10),
+    borderRadius: wScale(10),
+    marginVertical: hScale(6),
+  },
+  diffLabel: { fontSize: wScale(13), color: '#3C3C43', fontWeight: '600' },
+  diffValue: { fontSize: wScale(14), fontWeight: '800' },
+
+  // ── Dealer Card ───────────────────────────────────────────────────────────
+  dealerCard: {
+    backgroundColor: '#FFF',
+    borderRadius: wScale(18),
+    overflow: 'hidden',
+    marginBottom: hScale(12),
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  dealerAccent: { height: hScale(3) },
+  dealerBody: { padding: wScale(16) },
+  dealerHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  particularLabel: {
+    fontSize: wScale(10),
+    color: '#8E8E93',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: hScale(3),
+  },
+  dealerType: { fontSize: wScale(16), fontWeight: '800' },
+  earnCol: { alignItems: 'flex-end' },
+  earnAmount: { fontSize: wScale(18), fontWeight: '800', letterSpacing: -0.3 },
+  dealerDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E5E5EA',
+    marginVertical: hScale(12),
+  },
+  dealerStatsRow: { flexDirection: 'row', alignItems: 'center' },
+  dealerStat: { flex: 1, alignItems: 'center', gap: hScale(3) },
+  statLabel: {
+    fontSize: wScale(9),
+    color: '#8E8E93',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+  },
+  statValue: { fontSize: wScale(14), fontWeight: '800' },
+  statDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: hScale(30),
+    backgroundColor: '#E5E5EA',
+  },
+});

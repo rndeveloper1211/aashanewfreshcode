@@ -1,9 +1,12 @@
 import { translate } from "../../utils/languageUtils/I18n";
-import React, { useEffect, useState, useCallback } from "react"
-import { TouchableOpacity, View, Text, StyleSheet, ScrollView, Alert, Image, PermissionsAndroid, Platform } from "react-native"
+import React, { useEffect, useState, useCallback } from "react";
+import {
+    TouchableOpacity, View, Text, StyleSheet, ScrollView,
+    Alert, Image, PermissionsAndroid, Platform, Animated
+} from "react-native";
 import useAxiosHook from "../../utils/network/AxiosClient";
 import { APP_URLS } from "../../utils/network/urls";
-import { hScale, SCREEN_HEIGHT, wScale } from "../../utils/styles/dimensions";
+import { hScale, wScale } from "../../utils/styles/dimensions";
 import FlotingInput from "../drawer/securityPages/FlotingInput";
 import AppBarSecond from "../drawer/headerAppbar/AppBarSecond";
 import BankBottomSite from "../../components/BankBottomSite";
@@ -11,701 +14,554 @@ import OnelineDropdownSvg from "../drawer/svgimgcomponents/simpledropdown";
 import { FlashList } from "@shopify/flash-list";
 import { useDeviceInfoHook } from "../../utils/hooks/useDeviceInfoHook";
 import { useSelector } from "react-redux";
-import { colors, FontSize } from "../../utils/styles/theme";
+import { RootState } from "../../reduxUtils/store";
 import NoDatafound from "../drawer/svgimgcomponents/Nodatafound";
 import DynamicButton from "../drawer/button/DynamicButton";
-import { encrypt } from "../../utils/encryptionUtils";
 import { ALERT_TYPE, Dialog } from "react-native-alert-notification";
-import { openSettings } from "react-native-permissions";
+import { check, openSettings, PERMISSIONS, request, RESULTS } from 'react-native-permissions';
 import { launchCamera, launchImageLibrary } from "react-native-image-picker";
 import ShowLoader from "../../components/ShowLoder";
 import { DotLoader } from "../../components/DotLoader ";
-import { RootState } from "../../reduxUtils/store";
 import CheckSvg from "../drawer/svgimgcomponents/CheckSvg";
 import CloseSvg from "../drawer/svgimgcomponents/CloseSvg";
 import { BottomSheet } from "@rneui/themed";
 import ClosseModalSvg2 from "../drawer/svgimgcomponents/ClosseModal2";
 import { useLocationHook } from "../../hooks/useLocationHook";
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import SkeletonCard from '../../components/SkeletonCard';
 
 const DmtAddAccount = () => {
-    const { colorConfig, Loc_Data } = useSelector((state: RootState) => state.userInfo);
-    const color1 = `${colorConfig.secondaryColor}20`;
-    const { get, post } = useAxiosHook()
+    const { colorConfig, Loc_Data, userId } = useSelector((state: RootState) => state.userInfo);
+
+    const PRIMARY = colorConfig.secondaryColor || '#6366F1';
+    const PRIMARY_LIGHT = `${PRIMARY}15`;
+    const PRIMARY_MID = `${PRIMARY}30`;
+
+    const { get, post } = useAxiosHook();
     const [banklist, setBanklist] = useState([]);
     const [bank, setBank] = useState('');
     const [bankid, setBankid] = useState('');
     const [isBank, setIsBank] = useState(false);
-    const [loading, setLoading] = useState(false);
-    const [ifsccode, setIfsccode] = useState('')
-    const [acnNumber, setAcnNumber] = useState('')
-    const [name, setName] = useState('')
-    const [branch, setBranch] = useState('')
-    const [Addresss, setAddresss] = useState('')
+    const [loading, setLoading] = useState(true);
+    const [ifsccode, setIfsccode] = useState('');
+    const [acnNumber, setAcnNumber] = useState('');
+    const [name, setName] = useState('');
+    const [branch, setBranch] = useState('');
+    const [Addresss, setAddresss] = useState('');
     const [bankAcclist, setBankAcclist] = useState([]);
     const [Pincod, setPincode] = useState('');
     const [city, setCity] = useState('');
     const [add, setAdd] = useState(false);
-    const [idno, setidno] = useState('')
+    const [idno, setIdno] = useState('');
     const [base64Img, setbase64Img] = useState<any>(null);
     const [isLoading, setisLoading] = useState(false);
     const [imgshow, setImgshow] = useState(false);
-    const [imgurl, setImgurl] = useState('')
+    const [imgurl, setImgurl] = useState('');
     const { latitude, longitude } = useLocationHook();
-    const { getNetworkCarrier, getMobileDeviceId, getMobileIp } =
-        useDeviceInfoHook();
-    const { userId } = useSelector((state: RootState) => state.userInfo);
-    console.log(Loc_Data['latitude'], longitude, '@@@@@@@@@@@@@@@')
+    const { getNetworkCarrier, getMobileDeviceId, getMobileIp } = useDeviceInfoHook();
+
     const UpdateRetailerBank = useCallback(async (id) => {
         setisLoading(true);
         try {
             const ip = await getMobileIp();
             const Model = await getMobileDeviceId();
             const net = await getNetworkCarrier();
-
             const data = {
-                txtid3: id,
-                txtaccholder: name, // Ensure name is defined
-                txtbankaccountno: acnNumber, // Ensure acnNumber is defined
-                txtifsc: ifsccode, // Ensure ifsccode is defined
-                txtbankname: bank, // Ensure bank is defined
-                txtbranchaddress: branch, // Ensure branch is defined
-                IP: ip,
-                Latitude: Loc_Data['latitude'], // Ensure latitude is defined
-                Longitude: Loc_Data['longitude'], // Ensure longitude is defined
-                ModelNo: Model,
-                City: city, // Ensure city is defined
-                PostalCode: Pincod, // Ensure Pincod is defined
-                InternetTYPE: net,
-                Address: Addresss, // Ensure Addresss is defined
+                txtid3: id, txtaccholder: name, txtbankaccountno: acnNumber,
+                txtifsc: ifsccode, txtbankname: bank, txtbranchaddress: branch,
+                IP: ip, Latitude: Loc_Data['latitude'], Longitude: Loc_Data['longitude'],
+                ModelNo: Model, City: city, PostalCode: Pincod, InternetTYPE: net, Address: Addresss,
             };
-
-            console.log("Request Data Being Sent:", JSON.stringify(data));
-
-            const url = `${APP_URLS.UpdateRetailerBank}`;
-            const response = await post({
-                url: url,
-                data: data,
-            });
-
-            console.log("Response Received:", response);
-
-            const sts = response.Response;
-            setIdno(id); // Ensure id is defined
-
-            if (sts === 'Success') {
-                const newIdno = response.idno.toString();
-                setIdno(newIdno);
-                Alert.alert(
-                    '',
-                    `${response.Message} \n Select the option for Upload Cancel Check Photo`,
-                    [
-                        {
-                            text: 'Camera',
-                            onPress: async () => {
-                                await requestCameraPermission();
-                            },
-                            style: 'default',
+            const response = await post({ url: `${APP_URLS.UpdateRetailerBank}`, data });
+            if (response.Response === 'Success') {
+                setIdno(response.idno.toString());
+                Alert.alert('', `${response.Message} \n Select option to upload Cancel Cheque Photo`, [
+                    { text: 'Camera', onPress: async () => await requestCameraPermission() },
+                    {
+                        text: 'Gallery',
+                        onPress: async () => {
+                            await launchImageLibrary({ selectionLimit: 1, mediaType: 'photo', includeBase64: true }, (res) => {
+                                setbase64Img(res?.assets?.[0]?.base64);
+                            });
                         },
-                        {
-                            text: 'Gallery',
-                            onPress: async () => {
-                                await launchImageLibrary({ selectionLimit: 1, mediaType: 'photo', includeBase64: true }, (response) => {
-                                    setBase64Img(response?.assets?.[0]?.base64);
-                                    // Optionally call uploadDoCx here if needed
-                                });
-                            },
-                        },
-                        {
-                            text: "Cancel",
-                            onPress: () => {
-                                console.log("Cancel button clicked");
-                            },
-                            style: "cancel"
-                        }
-                    ]
-                );
+                    },
+                    { text: 'Cancel', style: 'cancel' },
+                ]);
             } else {
                 Alert.alert(`${response.Message}`);
             }
         } catch (error) {
-            console.error("Error during UpdateRetailerBank request:", error);
-            const errorMessage = error?.response?.data?.message || "An error occurred while updating the retailer's bank details.";
-            Alert.alert("Error", `${errorMessage}\n\nDetails: ${error?.message || error?.toString()}`);
+            Alert.alert('Error', error?.message || 'Something went wrong');
         } finally {
-            setIsLoading(false);
+            setisLoading(false);
         }
-    }, [name, acnNumber, ifsccode, bank, branch, Loc_Data, latitude, longitude, city, Pincod, Addresss]);
-
-
-    const test = async () => {
-        await launchImageLibrary({ selectionLimit: 1, mediaType: 'photo', includeBase64: true }, (response) => {
-
-            setbase64Img(response?.assets?.[0]?.base64);
-            uploadDoCx(response?.assets?.[0]?.base64, '')
-
-        });
-
-    }
+    }, [name, acnNumber, ifsccode, bank, branch, Loc_Data, city, Pincod, Addresss]);
 
     const uploadDoCx = async (bs64, idno) => {
         setisLoading(true);
-
-        const data = {
-            cancelledcheque: bs64,
-            cancellchecque_idno: idno,
-            currentrole: 'Retailer',
-        };
-
-        const body = JSON.stringify(data);
-
-        console.log('Request Body:', body);
-
         try {
             const response = await fetch(`https://${APP_URLS.baseWebUrl}/api/user/Uploadcancelledcheque`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Accept': 'application/json',
-                    'Authorization': 'Bearer ',
-                },
-                body: body,
+                headers: { 'Content-Type': 'application/json', Accept: 'application/json', Authorization: 'Bearer ' },
+                body: JSON.stringify({ cancelledcheque: bs64, cancellchecque_idno: idno, currentrole: 'Retailer' }),
             });
-
-            if (!response.ok) {
-                throw new Error('Network response was not ok');
-            }
-
+            if (!response.ok) throw new Error('Network response was not ok');
             const responseData = await response.json();
-            console.log('Response Data:', responseData);
-
-            const { Message: status, data: responseDataContent } = responseData;
-
-            setisLoading(false);
-
-            if (status === 'Image Updated Successfully.') {
-                Alert.alert(
-                    'Success',
-                    'Image Updated Successfully.',
-                    [{ text: 'OK' }]
-                );
+            if (responseData.Message === 'Image Updated Successfully.') {
+                Alert.alert('Success', 'Image Updated Successfully.');
             } else {
-                Alert.alert(
-                    'Error',
-                    status || 'An error occurred while uploading the image.',
-                    [{ text: 'OK' }]
-                );
+                Alert.alert('Error', responseData.Message || 'Upload failed');
             }
-            setAdd(false)
-
+            setAdd(false);
         } catch (error) {
-            console.error('Error during request:', error);
+            Alert.alert('Error', `Failed to upload: ${error.message}`);
+        } finally {
             setisLoading(false);
-
-            Alert.alert(
-                'Error',
-                `Failed to upload the image: ${error.message}`,
-                [{ text: 'OK' }]
-            );
         }
     };
 
-
     useEffect(() => {
-
-        //test()
         fetchBanks();
         const fetchBankAccounts = async () => {
             setLoading(true);
             try {
                 const response = await get({ url: `${APP_URLS.SavedAccounts}` });
-                console.log(response, '######################')
-
-                if (response.Response === "Success") {
+                if (response.Response === 'Success') {
                     setBankAcclist(response.Message);
-                    console.log(response)
                 } else {
-                    Alert.alert("Error", "Failed to load bank accounts");
+                    Alert.alert('Error', 'Failed to load bank accounts');
                 }
             } catch (error) {
-                Alert.alert("Error", "An error occurred while fetching bank accounts");
-                console.error(error);
+                Alert.alert('Error', 'An error occurred while fetching bank accounts');
             } finally {
                 setLoading(false);
             }
         };
-
         fetchBankAccounts();
-        // requestCameraPermission();
     }, []);
 
     const fetchBanks = async () => {
-        setLoading(true);
         try {
             const response = await post({ url: `${APP_URLS.aepsBanklist}` });
-            console.log(response, '+*+*+**++*+**++*+*');
-            if (response.RESULT === '0') {
-                setBanklist(response['ADDINFO']['data']);
-            } else {
-                Alert.alert('Error', 'Failed to load bank list');
-            }
-        } catch (error) {
-            Alert.alert('Error', 'An error occurred while fetching banks');
-            console.error(error);
-        } finally {
-            setLoading(false);
-        }
+            if (response.RESULT === '0') setBanklist(response['ADDINFO']['data']);
+        } catch (error) { console.error(error); }
     };
-    const requestCameraPermission = useCallback(async () => {
-        try {
-            const granted = await PermissionsAndroid.request(
-                PermissionsAndroid.PERMISSIONS.CAMERA,
-                {
-                    title: "Camera Permission",
-                    message:
-                        "key_thisappn_102",
-                    buttonPositive: "OK",
-                }
-            );
 
-            if (granted === PermissionsAndroid.RESULTS.GRANTED) {
 
-                await launchCamera({ mediaType: 'photo', includeBase64: true, quality: 0.5 }, (response) => {
-                    ; setbase64Img(response?.assets?.[0]?.base64);
-                    // uploadDoCx(response?.assets?.[0]?.base64,response.idno);
-                    //setisLoading(true)
-                });
+const requestCameraPermission = useCallback(async () => {
+  try {
+    // Step 1 — Pehle check karo
+    const currentStatus = await check(PERMISSIONS.ANDROID.CAMERA);
 
-            } else {
-                Dialog.show({
-                    type: ALERT_TYPE.WARNING,
-                    title: "Permission Required",
-                    textBody: "key_pleasegra_85",
-                    button: "OK",
-                    onPressButton: () => {
-                        Dialog.hide();
-                        openSettings().catch(() => console.warn("cannot open settings"));
-                    },
-                });
-            }
-        } catch (err) {
-            console.warn(err);
-        }
-    }, []);
+    // Already blocked hai — settings pe bhejo
+    if (currentStatus === RESULTS.BLOCKED) {
+      Dialog.show({
+        type: ALERT_TYPE.WARNING,
+        title: 'Permission Required',
+        textBody: 'key_pleasegra_85',
+        button: 'OK',
+        onPressButton: () => {
+          Dialog.hide();
+          openSettings().catch(() => {});
+        },
+      });
+      return;
+    }
 
-    const renderItem = ({ item }) => (
-        <View style={styles.card}>
-            <View style={styles.cardContainer}>
-                <View style={styles.cardView}>
-                    <Text style={styles.label}>{translate("Bank_Name")}</Text>
-                    <Text style={styles.value}>
-                        {item.Bank_Name === '' || !item.Bank_Name ? <DotLoader /> : item.Bank_Name}
-                    </Text>
-                </View>
-                <View style={styles.cardHeader}>
-                    <Text style={[styles.label, styles.rightAligned]}>{translate("IFSC_Code")}</Text>
-                    <Text style={[styles.value, styles.rightAligned]}>
-                        {item.IFSC_CODE === '' || !item.IFSC_CODE ? <DotLoader /> : item.IFSC_CODE}
-                    </Text>
-                </View>
+    // Step 2 — Granted nahi hai toh maango
+    if (currentStatus !== RESULTS.GRANTED) {
+      const result = await request(PERMISSIONS.ANDROID.CAMERA);
+      if (result !== RESULTS.GRANTED) return;
+    }
+
+    // Step 3 — Camera launch karo
+    await launchCamera(
+      {
+        mediaType: 'photo',
+        includeBase64: true,
+        quality: 0.5,
+        saveToPhotos: false,  // ✅ Gallery mein save nahi hoga
+      },
+      (res) => {
+        setbase64Img(res?.assets?.[0]?.base64);
+      },
+    );
+
+  } catch (err) {
+    console.warn(err);
+  }
+}, []);
+
+    // ── Status badge ──────────────────────────────────────────────────────────
+    const StatusBadge = ({ status }: { status: string }) => {
+        const isApproved = status === 'Approved';
+        const isPending = status === 'Pending';
+        const bg = isApproved ? '#D1FAE5' : isPending ? '#FEF9C3' : '#FEE2E2';
+        const dot = isApproved ? '#10B981' : isPending ? '#EAB308' : '#EF4444';
+        const textColor = isApproved ? '#065F46' : isPending ? '#713F12' : '#7F1D1D';
+        return (
+            <View style={[statusBadge.wrap, { backgroundColor: bg }]}>
+                <View style={[statusBadge.dot, { backgroundColor: dot }]} />
+                <Text style={[statusBadge.text, { color: textColor }]}>{status}</Text>
             </View>
-            <View style={styles.cardContainer}>
-                <View style={styles.cardView}>
-                    <Text style={styles.label}>{translate("Account_Holder_Name")}</Text>
-                    <Text style={styles.value}>
-                        {item.AcconutHolderName === '' || !item.AcconutHolderName ? <DotLoader /> : item.AcconutHolderName}
-                    </Text>
-                </View>
-                <View style={styles.cardHeader}>
-                    <Text style={[styles.label, styles.rightAligned]}>{translate("Account_NO")}</Text>
-                    <Text style={[styles.value, styles.rightAligned]}>
-                        {item.BankAccountNo === '' || !item.BankAccountNo ? <DotLoader /> : item.BankAccountNo}
-                    </Text>
-                </View>
+        );
+    };
+
+    // ── Info row ──────────────────────────────────────────────────────────────
+    const InfoRow = ({ left, right }: { left: { label: string; value: any }; right: { label: string; value: any } }) => (
+        <View style={infoRow.wrap}>
+            <View style={infoRow.cell}>
+                <Text style={infoRow.label}>{left.label}</Text>
+                <Text style={infoRow.value}>{left.value || <DotLoader />}</Text>
             </View>
-            <View style={styles.cardContainer}>
-                <View style={styles.cardView}>
-                    <Text style={styles.label}>{translate("Branch")}</Text>
-                    <Text style={styles.value}>
-                        {item.Bank_Address === '' || !item.Bank_Address ? <DotLoader /> : item.Bank_Address}
-                    </Text>
-                </View>
-                <View style={styles.cardHeader}>
-                    <Text style={[styles.label, styles.rightAligned]}>{translate("Account_Status")}</Text>
-                    <View style={[styles.statusContainer, { backgroundColor: color1 }]}>
-                        <View style={[styles.statusCard, { borderColor: colorConfig.primaryColor, borderWidth: 1 }]}>
-                            <View style={styles.content}>
-                                <Text style={[styles.statuslabel, { fontSize: 8 }]}>{translate("Cancel_Cheque")}</Text>
-                                <View style={styles.row}>
-                                    <View style={[
-                                        styles.circle,
-                                        {
-                                            backgroundColor: item.Status === "Approved" ? 'green' :
-                                                item.Status === "Pending" ? '#B8AD12' : 'red'
-                                        }
-                                    ]}>
-                                        {item.Status === "Approved" ? (
-                                            <CheckSvg size={15} />
-                                        ) : item.Status === "Pending" ? (
-                                            <CloseSvg size={15} />
-                                        ) : (
-                                            <CloseSvg size={15} />
-                                        )}
-                                    </View>
-
-                                    <View style={styles.buttonContainer}>
-                                        <TouchableOpacity
-                                            style={[styles.button, { backgroundColor: color1 }]}
-                                            onPress={() => {
-                                                if (item.CancelCheckFile === null) {
-                                                    setImgurl('');
-                                                    setImgshow(true)
-
-                                                    return;
-                                                }
-                                                const url = `https://${APP_URLS.baseWebUrl}${item.CancelCheckFile}`;
-                                                const newUrl = url.replace(/^https?:\/\/www\./, 'https://');
-                                                console.log(newUrl);
-                                                setImgurl(newUrl);
-                                                setImgshow(true)
-                                            }}
-                                        >
-                                            <Text style={[styles.buttonText, { fontSize: 10 }]}>{translate("View")}</Text>
-                                        </TouchableOpacity>
-                                    </View>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-                </View>
+            <View style={[infoRow.cell, { alignItems: 'flex-end' }]}>
+                <Text style={infoRow.label}>{right.label}</Text>
+                <Text style={[infoRow.value, { textAlign: 'right' }]}>{right.value || <DotLoader />}</Text>
             </View>
-
         </View>
     );
 
+    // ── Card render ───────────────────────────────────────────────────────────
+    const renderItem = ({ item }) => (
+        <View style={[cardS.shell, { borderTopColor: PRIMARY }]}>
+            <View style={[cardS.accentBar, { backgroundColor: PRIMARY_LIGHT }]}>
+                <View style={cardS.bankIconWrap}>
+                    <Text style={[cardS.bankInitial, { color: PRIMARY }]}>
+                        {(item.Bank_Name || 'B').charAt(0)}
+                    </Text>
+                </View>
+                <Text style={[cardS.bankName, { color: PRIMARY }]} numberOfLines={1}>
+                    {item.Bank_Name || <DotLoader />}
+                </Text>
+                <StatusBadge status={item.Status} />
+            </View>
+            <View style={cardS.body}>
+                <InfoRow
+                    left={{ label: translate('Account_Holder_Name'), value: item.AcconutHolderName }}
+                    right={{ label: translate('IFSC_Code'), value: item.IFSC_CODE }}
+                />
+                <View style={cardS.divider} />
+                <InfoRow
+                    left={{ label: translate('Account_NO'), value: item.BankAccountNo }}
+                    right={{ label: translate('Branch'), value: item.Bank_Address }}
+                />
+            </View>
+            <View style={[cardS.footer, { backgroundColor: PRIMARY_LIGHT }]}>
+                <View style={cardS.footerLeft}>
+                    <View style={[cardS.chequeIcon, {
+                        backgroundColor: item.Status === 'Approved' ? '#D1FAE5' : item.Status === 'Pending' ? '#FEF9C3' : '#FEE2E2'
+                    }]}>
+                        {item.Status === 'Approved' ? <CheckSvg size={14} /> : <CloseSvg size={14} />}
+                    </View>
+                    <Text style={cardS.chequeLabel}>{translate('Cancel_Cheque')}</Text>
+                </View>
+                <TouchableOpacity
+                    style={[cardS.viewBtn, { borderColor: PRIMARY, backgroundColor: '#fff' }]}
+                    onPress={() => {
+                        if (item.CancelCheckFile === null) { setImgurl(''); setImgshow(true); return; }
+                        const url = `https://${APP_URLS.baseWebUrl}${item.CancelCheckFile}`;
+                        setImgurl(url.replace(/^https?:\/\/www\./, 'https://'));
+                        setImgshow(true);
+                    }}
+                >
+                    <Text style={[cardS.viewBtnText, { color: PRIMARY }]}>{translate('View')}</Text>
+                </TouchableOpacity>
+            </View>
+        </View>
+    );
+
+    // ── Form progress ─────────────────────────────────────────────────────────
+    const formSteps = [bank, ifsccode, name, acnNumber, branch, city, Addresss, Pincod];
+    const completedSteps = formSteps.filter(v => v !== '').length;
+    const totalSteps = formSteps.length;
+
+    const SectionLabel = ({ text }: { text: string }) => (
+        <Text style={[formS.sectionLabel, { color: PRIMARY }]}>{text}</Text>
+    );
+const SkeletonList = () => (
+  <View style={{ padding: wScale(14), paddingBottom: hScale(32) }}>
+    {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
+  </View>
+);
 
     return (
-        <View style={styles.main}>
+        <View style={styles.root}>
+            <AppBarSecond
+                title={translate('DMT Add Account')}
+                onActionPress={undefined}
+                actionButton={undefined}
+                onPressBack={undefined}
+            />
 
-            <ScrollView>
+            <ScrollView showsVerticalScrollIndicator={false} style={styles.scroll}>
 
+                {/* ── Cancel cheque viewer ── */}
                 <BottomSheet animationType="none" isVisible={imgshow}
-                    containerStyle={styles.bottomSheetstyle}
-                    onBackdropPress={() => setImgshow(false)} >
-                    <View style={styles.bottomSheetview}>
-                        <View style={[styles.closeButtonContainer, { backgroundColor: color1 }]}>
-                            <Text style={styles.checktext}>{translate("view_Cancel_Cheque")}</Text>
-                            <TouchableOpacity
-                                onPress={() => { setImgshow(false); setImgurl('') }}
-                                style={[styles.closeButton, {}]}>
+                    containerStyle={sheetS.backdrop} onBackdropPress={() => setImgshow(false)}>
+                    <View style={sheetS.sheet}>
+                        <View style={[sheetS.handle, { backgroundColor: PRIMARY_MID }]} />
+                        <View style={sheetS.header}>
+                            <Text style={sheetS.headerTitle}>{translate('view_Cancel_Cheque')}</Text>
+                            <TouchableOpacity style={[sheetS.closeBtn, { backgroundColor: PRIMARY_LIGHT }]}
+                                onPress={() => { setImgshow(false); setImgurl(''); }}>
                                 <ClosseModalSvg2 />
                             </TouchableOpacity>
                         </View>
-                        <View style={styles.imageContainer}>
-                            {imgurl ?
-                                <Image
-                                    source={{ uri: imgurl }}
-                                    style={styles.checkImage}
-                                    resizeMode="contain"
-                                /> :
-                                <NoDatafound />}
+                        <View style={sheetS.imgWrap}>
+                            {imgurl ? <Image source={{ uri: imgurl }} style={sheetS.img} resizeMode="contain" /> : <NoDatafound />}
                         </View>
                     </View>
                 </BottomSheet>
 
+                {/* ── Add account form ── */}
                 <BottomSheet animationType="none" isVisible={add}
-                    containerStyle={styles.bottomSheetstyle}
-                    onBackdropPress={() => setAdd(false)} >
-
+                    containerStyle={sheetS.backdrop} onBackdropPress={() => setAdd(false)}>
                     <KeyboardAwareScrollView
-                        enableOnAndroid={true}
-                        enableAutomaticScroll={true}
-                        extraScrollHeight={Platform.OS === 'ios' ? hScale(50) : hScale(100)} // कीबोर्ड से ऊपर का गैप
+                        enableOnAndroid enableAutomaticScroll
+                        extraScrollHeight={Platform.OS === 'ios' ? hScale(50) : hScale(100)}
                         keyboardShouldPersistTaps="handled"
-                        style={{ width: '100%', backgroundColor: '#ffff', paddingBottom: hScale(100) }}
-
+                        style={{ width: '100%', backgroundColor: '#fff' }}
                     >
-
-                        <View style={[styles.bottomSheetview,]}>
-                            <View style={[styles.closeButtonContainer, { backgroundColor: color1 }]}>
-                                <Text style={styles.checktext}>{translate("Wallet_Unload_Ac")}</Text>
-                                <TouchableOpacity
-                                    onPress={() => { setAdd(false); }}
-                                    style={[styles.closeButton, {}]}>
+                        <View style={sheetS.sheet}>
+                            <View style={[sheetS.handle, { backgroundColor: PRIMARY_MID }]} />
+                            <View style={sheetS.header}>
+                                <Text style={sheetS.headerTitle}>{translate('Wallet_Unload_Ac')}</Text>
+                                <TouchableOpacity style={[sheetS.closeBtn, { backgroundColor: PRIMARY_LIGHT }]}
+                                    onPress={() => setAdd(false)}>
                                     <ClosseModalSvg2 />
                                 </TouchableOpacity>
                             </View>
-                            <View style={{ paddingHorizontal: wScale(10) }}>
 
-                                <TouchableOpacity onPress={() => setIsBank(true)}>
-                                    <FlotingInput
-                                        label={'Select Bank'}
-                                        value={bank}
-                                        keyboardType="numeric"
-                                        editable={false}
-                                        inputstyle={styles.inputstyle} labelinputstyle={undefined} onChangeTextCallback={undefined} />
-                                    {bank.length === 0 ?
-                                        <View style={styles.righticon}>
-                                            <OnelineDropdownSvg />
-                                        </View> : null}
-                                </TouchableOpacity>
-                                <FlotingInput
-                                    label={'IFSC Code'}
-                                    value={ifsccode}
-                                    editable={bank === '' ? false : true}
-                                    onChangeTextCallback={(text) => setIfsccode(text)} inputstyle={undefined} labelinputstyle={undefined} />
-                                <FlotingInput
-                                    label={'Account Holder Name'}
-                                    value={name}
-                                    editable={ifsccode === '' ? false : true}
-
-                                    onChangeTextCallback={(text) => setName(text)} inputstyle={undefined} labelinputstyle={undefined} />
-                                <FlotingInput
-                                    label={'Account Number'}
-                                    value={acnNumber}
-                                    editable={name === '' ? false : true}
-
-                                    keyboardType="numeric"
-                                    onChangeTextCallback={(text) => setAcnNumber(text)} inputstyle={undefined} labelinputstyle={undefined} />
-                                <FlotingInput
-                                    label={'Branch'}
-                                    value={branch}
-                                    onChangeTextCallback={(text) => setBranch(text)}
-                                    editable={acnNumber === '' ? false : true} inputstyle={undefined} labelinputstyle={undefined}
-                                />
-                                <FlotingInput
-                                    label={'City'}
-                                    value={city}
-                                    onChangeTextCallback={(text) => setCity(text)}
-                                    editable={branch === '' ? false : true} inputstyle={undefined} labelinputstyle={undefined}
-                                />
-                                <FlotingInput
-                                    label={'Address'}
-                                    value={Addresss}
-                                    onChangeTextCallback={(text) => setAddresss(text)}
-                                    editable={city === '' ? false : true} inputstyle={undefined} labelinputstyle={undefined}
-                                />
-                                <FlotingInput
-                                    label={'PinCode'}
-                                    value={Pincod}
-                                    onChangeTextCallback={(text) => setPincode(text)}
-                                    keyboardType={'numeric'}
-                                    editable={Addresss === '' ? false : true} inputstyle={undefined} labelinputstyle={undefined}
-                                />
-                                <BankBottomSite
-                                    setBankId={setBankid}
-                                    isbank={isBank}
-                                    setisbank={setIsBank}
-                                    setBankName={setBank}
-                                    bankdata={banklist}
-                                    onPress1={(onPress1) => { }}
-                                    setisFacialTan={(setisFacialTan) => {
-
-                                    }} />
-                                {base64Img && <Image
-                                    source={{ uri: "data:image/png;base64," + base64Img }}
-                                    style={styles.image}
-                                />}
-                                <DynamicButton
-
-                                    title={isLoading ? 'Processing...' : (base64Img ? 'Upload Photo' : 'Submit Detail')} onPress={() => {
-                                        if (Pincod) {
-                                            if (base64Img) {
-                                                uploadDoCx(base64Img, idno);
-                                            } else {
-                                                UpdateRetailerBank('');
-                                            }
-                                        }
-                                    }} styleoveride={undefined} />
+                            {/* Progress bar */}
+                            <View style={formS.progressWrap}>
+                                <View style={formS.progressTrack}>
+                                    <View style={[formS.progressFill, { width: `${(completedSteps / totalSteps) * 100}%`, backgroundColor: PRIMARY }]} />
+                                </View>
+                                <Text style={[formS.progressText, { color: PRIMARY }]}>
+                                    {completedSteps}/{totalSteps} {translate('fields')}
+                                </Text>
                             </View>
-                        </View></KeyboardAwareScrollView>
 
+                            <View style={formS.body}>
+                                <SectionLabel text="Bank Details" />
+                                <TouchableOpacity onPress={() => setIsBank(true)} activeOpacity={0.8}>
+                                    <FlotingInput label={'Select Bank'} value={bank} keyboardType="default"
+                                        editable={false} inputstyle={formS.input} labelinputstyle={undefined} onChangeTextCallback={undefined} />
+                                    {bank.length === 0 && <View style={formS.dropIcon}><OnelineDropdownSvg /></View>}
+                                </TouchableOpacity>
+                                <FlotingInput label={'IFSC Code'} value={ifsccode} editable={bank !== ''}
+                                    onChangeTextCallback={setIfsccode} inputstyle={formS.input} labelinputstyle={undefined} />
+
+                                <SectionLabel text="Account Details" />
+                                <FlotingInput label={'Account Holder Name'} value={name} editable={ifsccode !== ''}
+                                    onChangeTextCallback={setName} inputstyle={formS.input} labelinputstyle={undefined} />
+                                <FlotingInput label={'Account Number'} value={acnNumber} editable={name !== ''}
+                                    keyboardType="numeric" onChangeTextCallback={setAcnNumber}
+                                    inputstyle={formS.input} labelinputstyle={undefined} />
+
+                                <SectionLabel text="Address Details" />
+                                <FlotingInput label={'Branch'} value={branch} editable={acnNumber !== ''}
+                                    onChangeTextCallback={setBranch} inputstyle={formS.input} labelinputstyle={undefined} />
+                                <FlotingInput label={'City'} value={city} editable={branch !== ''}
+                                    onChangeTextCallback={setCity} inputstyle={formS.input} labelinputstyle={undefined} />
+                                <FlotingInput label={'Address'} value={Addresss} editable={city !== ''}
+                                    onChangeTextCallback={setAddresss} inputstyle={formS.input} labelinputstyle={undefined} />
+                                <FlotingInput label={'PinCode'} value={Pincod} editable={Addresss !== ''}
+                                    keyboardType="numeric" onChangeTextCallback={setPincode}
+                                    inputstyle={formS.input} labelinputstyle={undefined} />
+
+                                <BankBottomSite setBankId={setBankid} isbank={isBank} setisbank={setIsBank}
+                                    setBankName={setBank} bankdata={banklist} onPress1={() => {}} setisFacialTan={() => {}} />
+
+                                {base64Img && (
+                                    <View style={formS.imgPreviewWrap}>
+                                        <SectionLabel text="Photo Preview" />
+                                        <Image source={{ uri: `data:image/png;base64,${base64Img}` }}
+                                            style={formS.imgPreview} resizeMode="cover" />
+                                    </View>
+                                )}
+
+                                <View style={{ marginTop: hScale(10), marginBottom: hScale(30) }}>
+                                    <DynamicButton
+                                        title={isLoading ? 'Processing...' : (base64Img ? 'Upload Photo' : 'Submit Details')}
+                                        onPress={() => {
+                                            if (Pincod) {
+                                                base64Img ? uploadDoCx(base64Img, idno) : UpdateRetailerBank('');
+                                            }
+                                        }}
+                                        styleoveride={undefined} />
+                                </View>
+                            </View>
+                        </View>
+                    </KeyboardAwareScrollView>
                 </BottomSheet>
 
-                <View style={[styles.container, { backgroundColor: color1 }]}>
-                    <DynamicButton title={'Add For Dmt A/c'}
+                {/* ── Main page ── */}
+                <View style={styles.pageBody}>
+
+                    {/* Hero banner — WITH title field added */}
+                    <View style={[styles.heroBanner, { backgroundColor: PRIMARY_LIGHT, borderColor: PRIMARY_MID }]}>
+                        <View style={[styles.dmtIconWrap, { backgroundColor: PRIMARY }]}>
+                            <Text style={styles.dmtIconText}>₹</Text>
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.heroTitle, { color: PRIMARY }]}>
+                                {translate('DMT Accounts')}
+                            </Text>
+                            <Text style={styles.heroSub}>
+                                {translate('Manage your fund transfer bank accounts')}
+                            </Text>
+                        </View>
+                    </View>
+
+                    {/* Add button */}
+                    <TouchableOpacity
+                        style={[styles.addBtn, { backgroundColor: PRIMARY }]}
                         onPress={() => setAdd(!add)}
-                        styleoveride={{ marginBottom: hScale(10) }}
-                    />
-                    <FlashList
-                        data={bankAcclist}
-                        renderItem={renderItem}
-                        estimatedItemSize={200}
+                        activeOpacity={0.85}
+                    >
+                        <Text style={styles.addBtnPlus}>＋</Text>
+                        <Text style={styles.addBtnText}>{'Add DMT Account'}</Text>
+                    </TouchableOpacity>
 
-                        keyExtractor={(item) => item.Idno.toString()}
-                        ListEmptyComponent={() => (
+                    {/* List */}
+        {loading && <SkeletonList />}
 
-                            !loading &&
-                            <View>
-                                <NoDatafound />
-                            </View>
-                        )}
-                    />
+                    <View style={styles.listWrap}>
+                        <FlashList
+                            data={bankAcclist}
+                            renderItem={renderItem}
+                            estimatedItemSize={200}
+                            keyExtractor={(item) => item.Idno.toString()}
+                            ListEmptyComponent={() =>
+                                !loading && <View style={{ marginTop: hScale(20) }}><NoDatafound /></View>
+                            }
+                            scrollEnabled={false}
+                        />
+                    </View>
                 </View>
-
-
-                {isLoading && <ShowLoader />}
             </ScrollView>
 
+            {isLoading && <ShowLoader />}
         </View>
     );
 };
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-    main: {
-        flex: 1,
-    },
-    container: {
-        marginHorizontal: wScale(10),
-        paddingHorizontal: wScale(10),
-        paddingTop: hScale(10),
-    },
-    righticon: {
-        position: "absolute",
-        left: "auto",
-        right: wScale(0),
-        top: hScale(0),
-        height: "100%",
-        alignItems: "flex-end",
-        justifyContent: "center",
-        paddingRight: wScale(12),
-    },
-    image: {
-        width: wScale(200),
-        height: hScale(250),
-    },
-
-    card: {
-        backgroundColor: '#fff',
-        padding: wScale(10),
-        elevation: 5,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.25,
-        shadowRadius: 3.5,
-        marginBottom: hScale(10)
-    },
-    cardContainer: {
+    root: { flex: 1, backgroundColor: '#F8FAFC' },
+    scroll: { flex: 1 },
+    pageBody: { paddingHorizontal: wScale(14), paddingTop: hScale(14), paddingBottom: hScale(40) },
+    heroBanner: {
         flexDirection: 'row',
-        justifyContent: 'space-between',
         alignItems: 'center',
+        gap: wScale(12),
+        borderRadius: wScale(14),
+        borderWidth: 1,
+        padding: wScale(14),
+        marginBottom: hScale(14),
     },
-    cardView: {
+    dmtIconWrap: {
+        width: wScale(44), height: wScale(44), borderRadius: wScale(12),
+        alignItems: 'center', justifyContent: 'center',
     },
-    label: {
-        fontSize: wScale(15),
-        color: '#333',
+    dmtIconText: { fontSize: wScale(22), color: '#fff', fontWeight: '800' },
+    heroTitle: { fontSize: wScale(16), fontWeight: '800', marginBottom: hScale(2) },
+    heroSub: { fontSize: wScale(11), color: '#64748B', lineHeight: hScale(16) },
+    addBtn: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'center',
+        borderRadius: wScale(12), paddingVertical: hScale(13), marginBottom: hScale(18),
+        shadowColor: '#000', shadowOffset: { width: 0, height: hScale(3) },
+        shadowOpacity: 0.15, shadowRadius: 6, elevation: 4,
     },
-    value: {
-        fontSize: wScale(16),
-        fontWeight: 'bold',
-        color: '#000',
-    },
-    cardHeader: {
-        marginBottom: hScale(10),
-    },
-    rightAligned: {
-        textAlign: 'right',
-    },
-    flashliststyle: {
-        marginTop: hScale(10),
-    },
-    statusContainer: {
-        alignItems: 'flex-end',
-        width: wScale(90),
-        borderRadius: 5,
-
-    },
-    statusCard: {
-        borderRadius: 5,
-        width: '100%',
-        padding: wScale(2)
-    },
-    content: {
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    statuslabel: {
-        textAlign: 'left',
-    },
-    row: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        width: '100%',
-    },
-    buttonContainer: {
-        marginLeft: wScale(3),
-    },
-    button: {
-        height: hScale(20),
-        width: wScale(45),
-        justifyContent: 'center',
-        alignItems: 'center',
-        borderRadius: 3,
-    },
-    buttonText: {
-        textAlign: 'center',
-    },
-    circle: {
-        width: wScale(25),
-        height: wScale(25),
-        borderRadius: 100,
-        justifyContent: 'center',
-        alignItems: 'center'
-    },
-    bottomSheetstyle: {
-        backgroundColor: 'rgba(0, 0, 0, 0.9)',
-        flex: 1
-    },
-    bottomSheetview: {
-        backgroundColor: '#fff',
-        flex: 1,
-        borderTopLeftRadius: 15,
-        borderTopRightRadius: 15,
-    },
-    closeButtonContainer: {
-        paddingVertical: hScale(10),
-        borderTopLeftRadius: 15,
-        borderTopRightRadius: 15,
-        justifyContent: "space-between",
-        alignItems: "center",
-        flexDirection: "row",
-        paddingHorizontal: wScale(10),
-        marginBottom: hScale(10),
-    },
-    closeButton: {
-        width: wScale(30),
-        height: hScale(30),
-        borderRadius: 15,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    closeButtonText: {
-        fontSize: wScale(20),
-        color: '#000',
-    },
-    imageContainer: {
-        justifyContent: 'center',
-        alignItems: 'center',
-        flex: 1,
-        borderRadius: 10,
-        padding: wScale(10),
-    },
-    checkImage: {
-        width: '100%',
-        height: hScale(300),
-        borderRadius: 10,
-    },
-    checktext: {
-        fontSize: wScale(22),
-        color: "#000",
-        fontWeight: "bold",
-        textTransform: "capitalize",
-        textAlign: 'center',
-        flex: 1
-    }
+    addBtnPlus: { fontSize: wScale(20), color: '#fff', marginRight: wScale(8), lineHeight: wScale(22) },
+    addBtnText: { fontSize: wScale(15), fontWeight: '700', color: '#fff', letterSpacing: 0.3 },
+    listWrap: {},
 });
 
+const cardS = StyleSheet.create({
+    shell: {
+        backgroundColor: '#fff', borderRadius: wScale(14), marginBottom: hScale(12),
+        overflow: 'hidden', borderTopWidth: wScale(3),
+        shadowColor: '#000', shadowOffset: { width: 0, height: hScale(2) },
+        shadowOpacity: 0.06, shadowRadius: 8, elevation: 3,
+    },
+    accentBar: {
+        flexDirection: 'row', alignItems: 'center', gap: wScale(8),
+        paddingHorizontal: wScale(12), paddingVertical: hScale(10),
+    },
+    bankIconWrap: {
+        width: wScale(32), height: wScale(32), borderRadius: wScale(8),
+        backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+        shadowColor: '#000', shadowOpacity: 0.08, shadowRadius: 3, elevation: 2,
+    },
+    bankInitial: { fontSize: wScale(16), fontWeight: '800' },
+    bankName: { flex: 1, fontSize: wScale(13), fontWeight: '700' },
+    body: { paddingHorizontal: wScale(12), paddingVertical: hScale(10) },
+    divider: { height: 1, backgroundColor: '#F1F5F9', marginVertical: hScale(6) },
+    footer: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        paddingHorizontal: wScale(12), paddingVertical: hScale(8),
+    },
+    footerLeft: { flexDirection: 'row', alignItems: 'center', gap: wScale(6) },
+    chequeIcon: { width: wScale(24), height: wScale(24), borderRadius: wScale(6), alignItems: 'center', justifyContent: 'center' },
+    chequeLabel: { fontSize: wScale(12), color: '#64748B', fontWeight: '600' },
+    viewBtn: { borderWidth: 1.5, borderRadius: wScale(8), paddingHorizontal: wScale(14), paddingVertical: hScale(5) },
+    viewBtnText: { fontSize: wScale(12), fontWeight: '700' },
+});
+
+const infoRow = StyleSheet.create({
+    wrap: { flexDirection: 'row', justifyContent: 'space-between', marginVertical: hScale(2) },
+    cell: { flex: 1 },
+    label: { fontSize: wScale(10), color: '#94A3B8', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: hScale(2) },
+    value: { fontSize: wScale(13), fontWeight: '700', color: '#1E293B' },
+});
+
+const statusBadge = StyleSheet.create({
+    wrap: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: wScale(8), paddingVertical: hScale(3), borderRadius: wScale(20) },
+    dot: { width: wScale(6), height: wScale(6), borderRadius: 10, marginRight: wScale(4) },
+    text: { fontSize: wScale(11), fontWeight: '700' },
+});
+
+const sheetS = StyleSheet.create({
+    backdrop: { backgroundColor: 'rgba(0,0,0,0.55)', flex: 1 },
+    sheet: { backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24, overflow: 'hidden' },
+    handle: { width: wScale(40), height: hScale(4), borderRadius: 2, alignSelf: 'center', marginTop: hScale(10), marginBottom: hScale(4) },
+    header: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        paddingHorizontal: wScale(16), paddingVertical: hScale(14),
+        borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+    },
+    headerTitle: { fontSize: wScale(17), fontWeight: '800', color: '#1E293B', flex: 1 },
+    closeBtn: { width: wScale(34), height: wScale(34), borderRadius: wScale(10), alignItems: 'center', justifyContent: 'center' },
+    imgWrap: { justifyContent: 'center', alignItems: 'center', padding: wScale(16), minHeight: hScale(300) },
+    img: { width: '100%', height: hScale(300), borderRadius: 12 },
+});
+
+const formS = StyleSheet.create({
+    body: { paddingHorizontal: wScale(16), paddingTop: hScale(8) },
+    sectionLabel: {
+        fontSize: wScale(11), fontWeight: '800', letterSpacing: 1,
+        textTransform: 'uppercase', marginTop: hScale(14), marginBottom: hScale(4),
+    },
+    input: { borderRadius: wScale(10), backgroundColor: '#F8FAFC' },
+    dropIcon: {
+        position: 'absolute', right: wScale(0), top: 0, height: '100%',
+        alignItems: 'flex-end', justifyContent: 'center', paddingRight: wScale(12),
+    },
+    imgPreviewWrap: { marginTop: hScale(10), borderRadius: 12, overflow: 'hidden' },
+    imgPreview: { width: wScale(180), height: hScale(220), borderRadius: 10, alignSelf: 'center' },
+    progressWrap: {
+        flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+        paddingHorizontal: wScale(16), paddingVertical: hScale(10),
+        borderBottomWidth: 1, borderBottomColor: '#F1F5F9',
+    },
+    progressTrack: {
+        flex: 1, height: hScale(5), backgroundColor: '#E2E8F0',
+        borderRadius: 10, marginRight: wScale(10), overflow: 'hidden',
+    },
+    progressFill: { height: '100%', borderRadius: 10 },
+    progressText: { fontSize: wScale(11), fontWeight: '800', minWidth: wScale(40), textAlign: 'right' },
+});
 
 export default DmtAddAccount;

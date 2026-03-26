@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   Image,
   Text,
@@ -6,8 +6,8 @@ import {
   View,
   StyleSheet,
   TextInput,
-  TouchableWithoutFeedback,
-  Keyboard
+  Keyboard,
+  Platform,
 } from "react-native";
 import { BottomSheet } from "@rneui/themed";
 import { FlashList } from "@shopify/flash-list";
@@ -17,7 +17,172 @@ import { SCREEN_HEIGHT, hScale, wScale } from "../utils/styles/dimensions";
 import ClosseModalSvg2 from "../features/drawer/svgimgcomponents/ClosseModal2";
 import { colors } from "../utils/styles/theme";
 
-const OperatorBottomSheet = ({
+// ─────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────
+interface Props {
+  operatorData: any[];
+  stateData: any[];
+  isModalVisible: boolean;
+  selectedOperator: string;
+  setModalVisible: (v: boolean) => void;
+  selectOperator: (name: string) => void;
+  setOperatorcode: (code: string) => void;
+  setCircle: (circle: string) => void;
+  setState: (state: string) => void;
+  showState?: boolean;
+  setOperator?: (name: string) => void;
+  selectOperatorImage: (path: string) => void;
+  path: string;
+  handleItemPress?: (item: any) => void;
+}
+
+// ─────────────────────────────────────────────────
+// List Item
+// ─────────────────────────────────────────────────
+const OperatorItem = React.memo(({
+  item,
+  isOperator,
+  onPress,
+  primaryColor,
+}: {
+  item: any;
+  isOperator: boolean;
+  onPress: () => void;
+  primaryColor: string;
+}) => (
+  <TouchableOpacity
+    style={styles.itemRow}
+    onPress={onPress}
+    activeOpacity={0.75}
+  >
+    {/* Left: operator image or circle icon */}
+    <View style={[styles.iconBox, { backgroundColor: `${primaryColor}15` }]}>
+      {isOperator && item["path"] ? (
+        <Image source={{ uri: item["path"] }} style={styles.itemImg} />
+      ) : (
+        <Text style={[styles.iconFallback, { color: primaryColor }]}>
+          {(isOperator ? item["Operatorname"] : item["State Name"])
+            ?.charAt(0)
+            ?.toUpperCase()}
+        </Text>
+      )}
+    </View>
+
+    {/* Name */}
+    <Text style={styles.itemName} numberOfLines={1} ellipsizeMode="tail">
+      {isOperator ? item["Operatorname"] : item["State Name"]}
+    </Text>
+
+    {/* Chevron */}
+    <Text style={[styles.chevron, { color: primaryColor }]}>›</Text>
+  </TouchableOpacity>
+));
+
+// ─────────────────────────────────────────────────
+// Header
+// ─────────────────────────────────────────────────
+const SheetHeader = ({
+  isOperator,
+  selectedOperator,
+  path,
+  primaryColor,
+  bgColor,
+  onClose,
+}: {
+  isOperator: boolean;
+  selectedOperator: string;
+  path: string;
+  primaryColor: string;
+  bgColor: string;
+  onClose: () => void;
+}) => (
+  <View style={[styles.header, { backgroundColor: bgColor }]}>
+    {/* Drag handle */}
+    <View style={styles.dragHandle} />
+
+    <View style={styles.headerContent}>
+      {/* Left side */}
+      <View style={styles.headerLeft}>
+        {!isOperator && path ? (
+          <Image source={{ uri: path }} style={styles.headerImg} />
+        ) : null}
+        <View>
+          {!isOperator && (
+            <Text style={[styles.headerSub, { color: primaryColor }]}>
+              {selectedOperator}
+            </Text>
+          )}
+          <Text style={styles.headerTitle}>
+            {isOperator ? "Select Operator" : "Select Circle"}
+          </Text>
+        </View>
+      </View>
+
+      {/* Close button — only shown on operator screen */}
+      {isOperator && (
+        <TouchableOpacity
+          onPress={onClose}
+          activeOpacity={0.7}
+          style={[styles.closeBtn, { backgroundColor: `${primaryColor}18` }]}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          <ClosseModalSvg2 />
+        </TouchableOpacity>
+      )}
+    </View>
+  </View>
+);
+
+// ─────────────────────────────────────────────────
+// Search Bar
+// ─────────────────────────────────────────────────
+const SearchBar = ({
+  value,
+  onChangeText,
+  placeholder,
+  primaryColor,
+}: {
+  value: string;
+  onChangeText: (t: string) => void;
+  placeholder: string;
+  primaryColor: string;
+}) => {
+  const [focused, setFocused] = useState(false);
+  return (
+    <View
+      style={[
+        styles.searchWrapper,
+        { borderColor: focused ? primaryColor : '#E0E0E0' },
+      ]}
+    >
+      {/* Search icon */}
+      <Text style={[styles.searchIcon, { color: focused ? primaryColor : '#aaa' }]}>⌕</Text>
+      <TextInput
+        value={value}
+        onChangeText={onChangeText}
+        placeholder={placeholder}
+        placeholderTextColor="#bbb"
+        style={styles.searchInput}
+        returnKeyType="search"
+        onFocus={() => setFocused(true)}
+        onBlur={() => setFocused(false)}
+        autoCorrect={false}
+        cursorColor={primaryColor}
+      />
+      {value.length > 0 && (
+        <TouchableOpacity onPress={() => onChangeText('')} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          <Text style={styles.clearBtn}>✕</Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────────
+// Main Component
+// ─────────────────────────────────────────────────
+const OperatorBottomSheet: React.FC<Props> = ({
   operatorData,
   stateData,
   isModalVisible,
@@ -33,188 +198,296 @@ const OperatorBottomSheet = ({
   path,
   handleItemPress,
 }) => {
-
   const { colorConfig } = useSelector((state: RootState) => state.userInfo);
-  const color1 = `${colorConfig.secondaryColor}20`;
+  const primaryColor = colorConfig.primaryColor;
+  const bgColor = `${primaryColor}18`;
 
   const [selectbool, setSelectbool] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const searchRef = useRef<TextInput>(null);
 
-  const filteredData = (selectbool ? operatorData : stateData).filter(item =>
-    selectbool
-      ? item["Operatorname"].toLowerCase().includes(searchQuery.toLowerCase())
-      : item["State Name"].toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Reset on close
   useEffect(() => {
     if (!isModalVisible) {
       setSearchQuery('');
+      setSelectbool(true);
     }
   }, [isModalVisible]);
 
+  const activeList = selectbool ? operatorData : stateData;
+  const filteredData = activeList.filter(item => {
+    const name = selectbool ? item["Operatorname"] : item["State Name"];
+    return name?.toLowerCase().includes(searchQuery.toLowerCase());
+  });
 
-  const showBottomSheetList = () => {
-    return (
-      <FlashList keyboardShouldPersistTaps={'always'}
-        data={filteredData}
-        renderItem={({ item }: { item: any }) => {
-          return (
-            <View>
-              <TouchableOpacity
-                style={[styles.operatorview]}
-                onPress={async () => {
-                  Keyboard.dismiss();
-                  if (!showState) {
-                    selectOperator(item["Operatorname"]);
-                    setOperatorcode(item["OPtCode"]);
-                    selectOperatorImage(item["path"]);
-                    setModalVisible(false);
-                  } else {
-                    if (selectbool) {
-                      setSelectbool(false);
-                      setOperator?.(item["Operatorname"]);
-                      setOperatorcode(item["OPtCode"]);
-                      selectOperatorImage(item["path"]);
-                      handleItemPress(item);
-                    } else {
-                      setSelectbool(true);
-                      setCircle(item["State Name"]);
-                      setState(item["State Name"]);
-                      setModalVisible(false);
-                    }
-                  }
-                  handleItemPress(item);
-                }}
-              >
-                <Text style={[styles.operatornametext]} numberOfLines={1} ellipsizeMode="tail">
-                  {selectbool ? item["Operatorname"] : item["State Name"]}
-                </Text>
+  const handleItemTap = (item: any) => {
+    Keyboard.dismiss();
 
-                {selectbool ? (
-                  <Image
-                    source={{ uri: item["path"] }}
-                    style={styles.operatioimg}
-                  />
-                ) : null}
-              </TouchableOpacity>
-            </View>
-          );
-        }}
-        estimatedItemSize={30}
-      />
-    );
+    if (!showState) {
+      // Simple operator select
+      selectOperator(item["Operatorname"]);
+      setOperatorcode(item["OPtCode"]);
+      selectOperatorImage(item["path"]);
+      handleItemPress?.(item);
+      setModalVisible(false);
+      return;
+    }
+
+    if (selectbool) {
+      // Step 1: operator selected → show circles
+      setOperator?.(item["Operatorname"]);
+      setOperatorcode(item["OPtCode"]);
+      selectOperatorImage(item["path"]);
+      handleItemPress?.(item);
+      setSelectbool(false);
+    } else {
+      // Step 2: circle selected → done
+      setCircle(item["State Name"]);
+      setState(item["State Name"]);
+      setModalVisible(false);
+    }
   };
 
   return (
-    <BottomSheet 
-    animationType="none"
-    isVisible={isModalVisible} keyboardShouldPersistTaps="handled">
-      <TouchableWithoutFeedback onPress={() => Keyboard.dismiss()}>
-        <View style={styles.bottomsheetview}>
-          <View style={[styles.StateTitle, { backgroundColor: color1 }]}>
-            <View style={styles.titleview}>
-              {selectbool ? null : (
-                <View style={{ marginRight: wScale(20) }}>
-                  <Image style={styles.rightimg} source={{ uri: path }} />
-                </View>
-              )}
-              <View>
-                {selectbool ? null : (
-                  <Text style={styles.stateTitletext}>{selectedOperator}</Text>
-                )}
-                <Text style={selectbool ? styles.stateTitletext : styles.stateTitletext2}>
-                  {selectbool ? "Select Your Operator" : "Select Your Circle"}
-                </Text>
-              </View>
-            </View>
-            {selectbool ? (
-              <TouchableOpacity onPress={() => setModalVisible(false)} activeOpacity={0.7}>
-                <ClosseModalSvg2 />
-              </TouchableOpacity>
-            ) : null}
+    <BottomSheet
+      animationType="none"
+      isVisible={isModalVisible}
+      keyboardShouldPersistTaps="handled"
+      onBackdropPress={() => {
+        Keyboard.dismiss();
+        setModalVisible(false);
+      }}
+    >
+      <View style={styles.sheet}>
+        {/* Header */}
+        <SheetHeader
+          isOperator={selectbool}
+          selectedOperator={selectedOperator}
+          path={path}
+          primaryColor={primaryColor}
+          bgColor={bgColor}
+          onClose={() => setModalVisible(false)}
+        />
+
+        {/* Search */}
+        <SearchBar
+          value={searchQuery}
+          onChangeText={setSearchQuery}
+          placeholder={selectbool ? "Search operator..." : "Search circle..."}
+          primaryColor={primaryColor}
+        />
+
+        {/* Step indicator for showState flow */}
+        {showState && (
+          <View style={styles.stepRow}>
+            <View style={[styles.stepDot, { backgroundColor: primaryColor }]} />
+            <View style={[styles.stepLine, { backgroundColor: selectbool ? '#ddd' : primaryColor }]} />
+            <View style={[styles.stepDot, { backgroundColor: selectbool ? '#ddd' : primaryColor }]} />
+            <Text style={[styles.stepText, { color: '#888' }]}>
+              {selectbool ? "Step 1 of 2: Choose Operator" : "Step 2 of 2: Choose Circle"}
+            </Text>
           </View>
-          <TextInput
-            placeholder="Search..."
-            value={searchQuery}
-            onChangeText={text => setSearchQuery(text)}
-            style={styles.searchBar}
-            placeholderTextColor={colors.black75}
-            cursorColor={'colors.black'}
+        )}
+
+        {/* Empty state */}
+        {filteredData.length === 0 ? (
+          <View style={styles.emptyBox}>
+            <Text style={styles.emptyIcon}>🔍</Text>
+            <Text style={styles.emptyText}>No results for "{searchQuery}"</Text>
+          </View>
+        ) : (
+          <FlashList
+            data={filteredData}
+            keyboardShouldPersistTaps="always"
+            estimatedItemSize={64}
+            keyExtractor={(item, i) =>
+              selectbool ? item["OPtCode"] ?? String(i) : item["State Name"] ?? String(i)
+            }
+            contentContainerStyle={{ paddingBottom: hScale(30) }}
+            renderItem={({ item }) => (
+              <OperatorItem
+                item={item}
+                isOperator={selectbool}
+                onPress={() => handleItemTap(item)}
+                primaryColor={primaryColor}
+              />
+            )}
           />
-          {showBottomSheetList()}
-        </View>
-      </TouchableWithoutFeedback>
+        )}
+      </View>
     </BottomSheet>
   );
 };
 
+// ─────────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  bottomsheetview: {
+  sheet: {
     backgroundColor: "#fff",
     height: SCREEN_HEIGHT / 1.3,
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
+    borderTopLeftRadius: wScale(20),
+    borderTopRightRadius: wScale(20),
+    overflow: "hidden",
   },
-  StateTitle: {
-    paddingVertical: hScale(10),
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
-    justifyContent: "space-between",
-    alignItems: "center",
-    flexDirection: "row",
-    paddingHorizontal: wScale(10),
-    marginBottom: hScale(10),
+
+  // ── Header ──
+  header: {
+    borderTopLeftRadius: wScale(20),
+    borderTopRightRadius: wScale(20),
+    paddingBottom: hScale(12),
   },
-  stateTitletext: {
-    fontSize: wScale(22),
-    color: "#000",
-    fontWeight: "bold",
-    textTransform: "uppercase",
-  },
-  stateTitletext2: {
-    fontSize: wScale(17),
-    color: "#000",
-    fontWeight: "bold",
-    textTransform: "uppercase",
-  },
-  titleview: {
-    flex: 1,
-    alignItems: "center",
-    flexDirection: "row",
-    justifyContent: "center",
-  },
-  rightimg: {
-    height: wScale(45),
-    width: wScale(45),
-  },
-  operatorview: {
-    flexDirection: "row-reverse",
-    alignItems: "center",
-    paddingHorizontal: wScale(10),
-  },
-  operatornametext: {
-    textTransform: "capitalize",
-    fontSize: wScale(20),
-    color: "#000",
-    flex: 1,
-    borderBottomColor: "#000",
-    borderBottomWidth: wScale(0.5),
+  dragHandle: {
+    width: wScale(36),
+    height: hScale(4),
+    borderRadius: 4,
+    backgroundColor: "#ccc",
     alignSelf: "center",
-    paddingVertical: hScale(30),
+    marginTop: hScale(10),
+    marginBottom: hScale(8),
   },
-  operatioimg: {
-    width: wScale(45),
-    height: wScale(45),
-    marginRight: wScale(20),
+  headerContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: wScale(16),
   },
-  searchBar: {
-    borderColor: 'gray',
-    borderWidth: wScale(1),
-    paddingHorizontal: wScale(15),
-    marginHorizontal: wScale(10),
+  headerLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: wScale(10),
+    flex: 1,
+  },
+  headerImg: {
+    width: wScale(42),
+    height: wScale(42),
+    borderRadius: wScale(8),
+    resizeMode: "contain",
+  },
+  headerTitle: {
+    fontSize: wScale(17),
+    fontWeight: "700",
+    color: "#1a1a1a",
+    letterSpacing: 0.2,
+  },
+  headerSub: {
+    fontSize: wScale(12),
+    fontWeight: "600",
+    textTransform: "uppercase",
+    letterSpacing: 0.5,
+    marginBottom: hScale(2),
+  },
+  closeBtn: {
+    padding: wScale(8),
+    borderRadius: wScale(20),
+  },
+
+  // ── Search ──
+  searchWrapper: {
+    flexDirection: "row",
+    alignItems: "center",
+    borderWidth: 1.5,
+    borderRadius: wScale(12),
+    marginHorizontal: wScale(14),
     marginBottom: hScale(10),
-    borderRadius: 5,
-    color: colors.black75,
-    fontSize: wScale(16),
+    paddingHorizontal: wScale(12),
+    backgroundColor: "#FAFAFA",
+    height: hScale(46),
+  },
+  searchIcon: {
+    fontSize: wScale(20),
+    marginRight: wScale(8),
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: wScale(15),
+    color: "#222",
+    padding: 0,
+  },
+  clearBtn: {
+    fontSize: wScale(13),
+    color: "#aaa",
+    paddingLeft: wScale(8),
+  },
+
+  // ── Step indicator ──
+  stepRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: wScale(16),
+    marginBottom: hScale(8),
+    gap: wScale(4),
+  },
+  stepDot: {
+    width: wScale(8),
+    height: wScale(8),
+    borderRadius: 4,
+  },
+  stepLine: {
+    flex: 0,
+    width: wScale(20),
+    height: hScale(2),
+    borderRadius: 2,
+  },
+  stepText: {
+    fontSize: wScale(12),
+    marginLeft: wScale(6),
+  },
+
+  // ── List item ──
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: hScale(12),
+    paddingHorizontal: wScale(16),
+    borderBottomWidth: 0.8,
+    borderBottomColor: "#F0F0F0",
+  },
+  iconBox: {
+    width: wScale(42),
+    height: wScale(42),
+    borderRadius: wScale(10),
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: wScale(12),
+    overflow: "hidden",
+  },
+  itemImg: {
+    width: "100%",
+    height: "100%",
+    resizeMode: "contain",
+  },
+  iconFallback: {
+    fontSize: wScale(18),
+    fontWeight: "700",
+  },
+  itemName: {
+    flex: 1,
+    fontSize: wScale(15),
+    color: "#222",
+    fontWeight: "500",
+    textTransform: "capitalize",
+  },
+  chevron: {
+    fontSize: wScale(22),
+    fontWeight: "300",
+    marginLeft: wScale(8),
+  },
+
+  // ── Empty state ──
+  emptyBox: {
+    flex: 1,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingTop: hScale(60),
+  },
+  emptyIcon: {
+    fontSize: wScale(36),
+    marginBottom: hScale(10),
+  },
+  emptyText: {
+    fontSize: wScale(14),
+    color: "#aaa",
   },
 });
 

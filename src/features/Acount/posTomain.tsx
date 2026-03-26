@@ -8,7 +8,6 @@ import {
   Alert,
   SafeAreaView,
   ActivityIndicator,
-  KeyboardAvoidingView,
   Platform,
   StatusBar,
 } from 'react-native';
@@ -16,57 +15,108 @@ import { BottomSheet } from '@rneui/themed';
 import { FlashList } from '@shopify/flash-list';
 import { TabView, TabBar } from 'react-native-tab-view';
 import { useSelector } from 'react-redux';
+import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
-// Utils & Hooks
 import useAxiosHook from '../../utils/network/AxiosClient';
 import { decryptData } from '../../utils/encryptionUtils';
 import { SCREEN_WIDTH, hScale, wScale } from '../../utils/styles/dimensions';
-import { translate } from "../../utils/languageUtils/I18n";
-
-// Components
+import { translate } from '../../utils/languageUtils/I18n';
 import AppBarSecond from '../drawer/headerAppbar/AppBarSecond';
 import FlotingInput from '../drawer/securityPages/FlotingInput';
 import OnelineDropdownSvg from '../drawer/svgimgcomponents/simpledropdown';
+import DynamicButton from '../drawer/button/DynamicButton';
+
+// ─── Types ───────────────────────────────────────────────────────────────────
+
+type SheetType = 'method' | 'account' | null;
+
+interface Balance {
+  posremain: string;
+  remainbal: string;
+}
+
+interface BankItem {
+  BankAccountNo: string;
+  AcconutHolderName: string;
+  BankName: string;
+}
+
+interface FormData {
+  amount: string;
+  paymentMethod: string;
+  selectedAccNo: string;
+  transactionPin: string;
+}
+
+// ─── Constants ───────────────────────────────────────────────────────────────
+
+const PAYMENT_METHODS = ['IMPS', 'NEFT'];
+
+const INITIAL_FORM: FormData = {
+  amount: '',
+  paymentMethod: 'IMPS',
+  selectedAccNo: '',
+  transactionPin: '',
+};
+
+// ─── Sub-components (defined outside to prevent re-render) ───────────────────
+
+const BalanceCard = ({ label, amount }: { label: string; amount: string }) => (
+  <View style={styles.balItem}>
+    <Text style={styles.balLabel}>{label}</Text>
+    <Text style={styles.balAmount}>₹{amount}</Text>
+  </View>
+);
+
+const SectionLabel = ({ text }: { text: string }) => (
+  <Text style={styles.sectionLabel}>{text}</Text>
+);
+
+const Selector = ({
+  value,
+  onPress,
+}: {
+  value: string;
+  onPress: () => void;
+}) => (
+  <TouchableOpacity style={styles.selector} onPress={onPress} activeOpacity={0.7}>
+    <Text style={styles.selectorText}>{value}</Text>
+    <OnelineDropdownSvg />
+  </TouchableOpacity>
+);
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 const PostoMain = () => {
-  const { colorConfig } = useSelector(state => state.userInfo);
-  const themeColor = colorConfig?.primaryColor || '#0A84FF';
+  const { colorConfig } = useSelector((s: any) => s.userInfo);
+  const themeColor: string = colorConfig?.primaryColor || '#0A84FF';
   const { get, post } = useAxiosHook();
 
-  // --- States ---
   const [index, setIndex] = useState(0);
   const [loading, setLoading] = useState(false);
-  const [sheetType, setSheetType] = useState(null); // 'method' | 'account' | null
-  const [bankList, setBankList] = useState([]);
-  const [balance, setBalance] = useState({ posremain: '0', remainbal: '0.00' });
-  
-  const [formData, setFormData] = useState({
-    amount: '',
-    paymentMethod: 'IMPS',
-    selectedAccNo: '',
-    transactionPin: '',
-  });
+  const [sheetType, setSheetType] = useState<SheetType>(null);
+  const [bankList, setBankList] = useState<BankItem[]>([]);
+  const [balance, setBalance] = useState<Balance>({ posremain: '0', remainbal: '0.00' });
+  const [formData, setFormData] = useState<FormData>(INITIAL_FORM);
 
-  const routes = useMemo(() => [
-    { key: 'bank', title: 'To Bank' },
-    { key: 'mainWallet', title: 'Wallet' },
-    { key: 'distributor', title: 'Distributor' },
-  ], []);
+  const routes = useMemo(
+    () => [
+      { key: 'bank', title: 'To Bank' },
+      { key: 'mainWallet', title: 'Wallet' },
+      { key: 'distributor', title: 'Distributor' },
+    ],
+    [],
+  );
 
-  // --- Effects ---
-  useEffect(() => {
-    loadInitialData();
-  }, []);
+  // ─── Data Loading ────────────────────────────────────────────────────────────
 
-  const loadInitialData = async () => {
+  const loadInitialData = useCallback(async () => {
     try {
       const [bankRes, balRes] = await Promise.all([
         get({ url: 'WalletUnload/api/data/ShowbankdetailsforWalletToBank' }),
         get({ url: 'Retailer/api/data/Show_ALL_balanceremRem' }),
       ]);
-
       if (balRes?.data?.[0]) setBalance(balRes.data[0]);
-
       if (bankRes?.vvvv) {
         const decrypted = JSON.parse(
           decryptData(bankRes.vvvv, bankRes.kkkk, bankRes.bankdetails),
@@ -74,24 +124,35 @@ const PostoMain = () => {
         setBankList(decrypted?.data || []);
       }
     } catch (err) {
-      console.error("Data Load Error:", err);
+      console.error('Data Load Error:', err);
     }
-  };
+  }, []);
 
-  // --- Handlers ---
-  const updateForm = (key, value) => {
+  useEffect(() => {
+    loadInitialData();
+  }, [loadInitialData]);
+
+  // ─── Form Helpers ────────────────────────────────────────────────────────────
+
+  const updateForm = useCallback(<K extends keyof FormData>(key: K, value: FormData[K]) => {
     setFormData(prev => ({ ...prev, [key]: value }));
-  };
+  }, []);
 
-  const handleTransfer = async () => {
+  const resetPostTransfer = useCallback(() => {
+    setFormData(prev => ({ ...prev, amount: '', transactionPin: '' }));
+  }, []);
+
+  const closeSheet = useCallback(() => setSheetType(null), []);
+
+  // ─── Transfer Logic ───────────────────────────────────────────────────────────
+
+  const handleTransfer = useCallback(async () => {
     const { amount, paymentMethod, selectedAccNo, transactionPin } = formData;
     const currentKey = routes[index].key;
 
-    // Basic Validation
     if (!amount || parseFloat(amount) <= 0) {
       return Alert.alert('Invalid Amount', 'Please enter a valid amount.');
     }
-
     if (currentKey === 'bank' && (!selectedAccNo || !transactionPin)) {
       return Alert.alert('Missing Info', 'Please select a bank account and enter your PIN.');
     }
@@ -99,269 +160,432 @@ const PostoMain = () => {
     setLoading(true);
     try {
       if (currentKey === 'bank') {
-        // Step 1: Generate Transaction ID
-        const initRes = await post({ 
-          url: `WalletUnload/api/data/GenerateWalletTransectiongenerateid?Amount=${amount}&Type=${paymentMethod}&AccountNo=${selectedAccNo}` 
+        const initRes = await post({
+          url: `WalletUnload/api/data/GenerateWalletTransectiongenerateid?Amount=${amount}&Type=${paymentMethod}&AccountNo=${selectedAccNo}`,
         });
-
         if (initRes?.sts === 'Success') {
-          // Step 2: Final Request
           const finalRes = await post({
             url: `WalletUnload/api/data/AddWalletToBankRequest?Amount=${amount}&Type=${paymentMethod}&transid=${initRes.transferid}&dmtpin=${transactionPin}&BankAccountNo=${selectedAccNo}`,
           });
           Alert.alert('Status', finalRes?.Message || 'Request Processed');
-          setFormData({ ...formData, amount: '', transactionPin: '' });
+          resetPostTransfer();
         } else {
           Alert.alert('Process Failed', initRes?.msg || 'Could not initiate transfer.');
         }
       } else {
-        // Wallet or Distributor logic
-        const url = currentKey === 'mainWallet' 
-          ? `MPOS/api/mPos/pos_to_Wallet_TransferAmount?amount=${amount}`
-          : `MPOS/api/mPos/pos_to_Distributor_TransferAmount?amount=${amount}`;
-        
+        const url =
+          currentKey === 'mainWallet'
+            ? `MPOS/api/mPos/pos_to_Wallet_TransferAmount?amount=${amount}`
+            : `MPOS/api/mPos/pos_to_Distributor_TransferAmount?amount=${amount}`;
         const res = await post({ url });
         Alert.alert(res?.Status || 'Success', res?.msg || 'Transfer request submitted');
         updateForm('amount', '');
       }
-      loadInitialData(); // Refresh balances
-    } catch (error) {
+      loadInitialData();
+    } catch {
       Alert.alert('Error', 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
-  };
+  }, [formData, index, routes, loadInitialData, resetPostTransfer, updateForm]);
 
-  // --- UI Components ---
-  const renderScene = useCallback(({ route }) => (
-    <ScrollView 
-      contentContainerStyle={styles.tabContent}
-      showsVerticalScrollIndicator={false}
-      keyboardShouldPersistTaps="handled"
-    >
-      {/* Amount Input Card */}
-      <View style={styles.glassCard}>
-        <Text style={styles.inputLabel}>{translate("Enter_Amount")}</Text>
-        <FlotingInput
-          label="₹ 0.00"
-          value={formData.amount}
-          onChangeTextCallback={(v) => updateForm('amount', v)}
-          keyboardType="number-pad"
-        />
-      </View>
+  // ─── Tab Scene ────────────────────────────────────────────────────────────────
 
-      {/* Bank Specific Fields */}
-      {route.key === 'bank' && (
-        <View style={[styles.glassCard, { marginTop: hScale(20) }]}>
-          <Text style={styles.inputLabel}>{translate("Payment_Method")}</Text>
-          <TouchableOpacity style={styles.selector} onPress={() => setSheetType('method')}>
-            <Text style={styles.selectorText}>{formData.paymentMethod}</Text>
-            <OnelineDropdownSvg />
-          </TouchableOpacity>
-
-          <Text style={styles.inputLabel}>{translate("Bank_Account")}</Text>
-          <TouchableOpacity style={styles.selector} onPress={() => setSheetType('account')}>
-            <Text style={styles.selectorText}>
-              {formData.selectedAccNo ? `**** ${formData.selectedAccNo.slice(-4)}` : 'Choose Account'}
-            </Text>
-            <OnelineDropdownSvg />
-          </TouchableOpacity>
-
-          <Text style={styles.inputLabel}>{translate("Transaction_PIN")}</Text>
+  const renderScene = useCallback(
+    ({ route }: { route: { key: string } }) => (
+      <KeyboardAwareScrollView
+        contentContainerStyle={styles.sceneContent}
+        showsVerticalScrollIndicator={false}
+        enableOnAndroid
+        extraScrollHeight={20}
+        keyboardShouldPersistTaps="handled"
+      >
+        {/* Amount Card */}
+        <View style={styles.card}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardIcon}>💸</Text>
+            <Text style={styles.cardTitle}>{translate('Enter_Amount')}</Text>
+          </View>
           <FlotingInput
-            label="Enter Security PIN"
-            value={formData.transactionPin}
-            onChangeTextCallback={(v) => updateForm('transactionPin', v)}
-            secureTextEntry
+            label="₹ Enter amount"
+            value={formData.amount}
+            onChangeTextCallback={(v: string) => updateForm('amount', v)}
             keyboardType="number-pad"
           />
         </View>
-      )}
 
-      {/* Action Button */}
-      <TouchableOpacity
-        activeOpacity={0.8}
-        disabled={loading || !formData.amount}
-        onPress={handleTransfer}
-        style={[
-          styles.primaryButton, 
-          { backgroundColor: (loading || !formData.amount) ? '#D1D1D6' : themeColor }
-        ]}
-      >
-        {loading ? (
-          <ActivityIndicator color="#FFF" />
-        ) : (
-          <Text style={styles.buttonText}>PROCEED TO TRANSFER</Text>
+        {/* Bank-specific fields */}
+        {route.key === 'bank' && (
+          <View style={[styles.card, styles.cardSpaced]}>
+            <View style={styles.cardHeader}>
+              <Text style={styles.cardIcon}>🏦</Text>
+              <Text style={styles.cardTitle}>Bank Details</Text>
+            </View>
+
+            <SectionLabel text={translate('Payment_Method')} />
+            <Selector
+              value={formData.paymentMethod}
+              onPress={() => setSheetType('method')}
+            />
+
+            <SectionLabel text={translate('Bank_Account')} />
+            <Selector
+              value={
+                formData.selectedAccNo
+                  ? `**** ${formData.selectedAccNo.slice(-4)}`
+                  : 'Choose Account'
+              }
+              onPress={() => setSheetType('account')}
+            />
+
+            <SectionLabel text={translate('Transaction_PIN')} />
+            <FlotingInput
+              label="Security PIN"
+              value={formData.transactionPin}
+              onChangeTextCallback={(v: string) => updateForm('transactionPin', v)}
+              secureTextEntry
+              keyboardType="number-pad"
+            />
+
+          </View>
         )}
-      </TouchableOpacity>
-    </ScrollView>
-  ), [formData, loading, themeColor]);
+
+        {/* Proceed Button */}
+        {/* <TouchableOpacity
+          activeOpacity={0.85}
+          disabled={loading || !formData.amount}
+          onPress={handleTransfer}
+          style={[
+            styles.primaryBtn,
+            { backgroundColor: loading || !formData.amount ? '#C7C7CC' : themeColor },
+          ]}
+        >
+          {loading ? (
+            <ActivityIndicator color="#FFF" />
+          ) : (
+            <>
+              <Text style={styles.btnText}>PROCEED</Text>
+            </>
+          )}
+        </TouchableOpacity> */}
+
+        <DynamicButton
+        title={'Next'}
+        onPress={()=>handleTransfer()}
+        />
+      </KeyboardAwareScrollView>
+    ),
+    [formData, loading, themeColor, handleTransfer, updateForm],
+  );
+
+  // ─── Render ───────────────────────────────────────────────────────────────────
 
   return (
     <SafeAreaView style={styles.container}>
       <StatusBar barStyle="light-content" />
-      <KeyboardAvoidingView 
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined} 
-        style={{ flex: 1 }}
-      >
-        {/* Header with Balances */}
-        <View style={[styles.header, { backgroundColor: themeColor }]}>
-          <AppBarSecond title="Money Transfer" titlestyle={{ color: '#FFF' }} />
-          <View style={styles.balanceContainer}>
-            <View style={styles.balItem}>
-              <Text style={styles.balLabel}>POS BALANCE</Text>
-              <Text style={styles.balAmount}>₹{balance.posremain}</Text>
-            </View>
-            <View style={styles.balDivider} />
-            <View style={styles.balItem}>
-              <Text style={styles.balLabel}>MAIN WALLET</Text>
-              <Text style={styles.balAmount}>₹{balance.remainbal}</Text>
-            </View>
-          </View>
+
+      {/* Header */}
+      <View style={[styles.header, { backgroundColor: themeColor }]}>
+        <AppBarSecond title="Money Transfer" titlestyle={styles.headerTitle} />
+        <View style={styles.balanceRow}>
+          <BalanceCard label="POS BALANCE" amount={balance.posremain} />
+          <View style={styles.balDivider} />
+          <BalanceCard label="MAIN WALLET" amount={balance.remainbal} />
         </View>
+      </View>
 
-        {/* Tab Navigation */}
-        <TabView
-          navigationState={{ index, routes }}
-          renderScene={renderScene}
-          onIndexChange={setIndex}
-          initialLayout={{ width: SCREEN_WIDTH }}
-          renderTabBar={props => (
-            <TabBar
-              {...props}
-              indicatorStyle={{ backgroundColor: themeColor, height: 3 }}
-              style={styles.tabBar}
-              activeColor={themeColor}
-              inactiveColor="#8E8E93"
-              labelStyle={styles.tabLabel}
-            />
-          )}
-        />
+      {/* Tabs */}
+      <TabView
+        navigationState={{ index, routes }}
+        renderScene={renderScene}
+        onIndexChange={setIndex}
+        initialLayout={{ width: SCREEN_WIDTH }}
+        renderTabBar={props => (
+          <TabBar
+            {...props}
+            indicatorStyle={[styles.tabIndicator, { backgroundColor: themeColor }]}
+            style={styles.tabBar}
+            activeColor={themeColor}
+            inactiveColor="#8E8E93"
+            labelStyle={styles.tabLabel}
+          />
+        )}
+      />
 
-        {/* Bottom Selection Sheet */}
-        <BottomSheet 
-          isVisible={!!sheetType} 
-          onBackdropPress={() => setSheetType(null)}
-          containerStyle={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-        >
-          <View style={styles.bottomSheet}>
-            <View style={styles.sheetHandle} />
-            <Text style={styles.sheetTitle}>
-              {sheetType === 'method' ? 'Select Method' : 'Select Bank Account'}
-            </Text>
-            
-            {sheetType === 'method' ? (
-              ['IMPS', 'NEFT'].map(method => (
-                <TouchableOpacity 
-                  key={method} 
-                  style={styles.sheetItem} 
-                  onPress={() => { updateForm('paymentMethod', method); setSheetType(null); }}
-                >
+      {/* Bottom Sheet */}
+      <BottomSheet
+        animationType="none"
+        isVisible={!!sheetType}
+        onBackdropPress={closeSheet}
+        containerStyle={styles.sheetOverlay}
+      >
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          <Text style={styles.sheetTitle}>
+            {sheetType === 'method' ? translate('Select Method') : translate('Select Bank Account')}
+          </Text>
+
+          {sheetType === 'method' ? (
+            PAYMENT_METHODS.map(method => (
+              <TouchableOpacity
+                key={method}
+                style={styles.sheetItem}
+                activeOpacity={0.7}
+                onPress={() => {
+                  updateForm('paymentMethod', method);
+                  closeSheet();
+                }}
+              >
+                <View style={styles.sheetItemInner}>
                   <Text style={styles.sheetItemText}>{method}</Text>
-                </TouchableOpacity>
-              ))
-            ) : (
-              <View style={{ height: 350 }}>
-                <FlashList
-                  data={bankList}
-                  estimatedItemSize={70}
-                  keyExtractor={(item) => item.BankAccountNo}
-                  renderItem={({ item }) => (
-                    <TouchableOpacity 
-                      style={styles.sheetItem} 
-                      onPress={() => { updateForm('selectedAccNo', item.BankAccountNo); setSheetType(null); }}
-                    >
-                      <View>
-                        <Text style={styles.sheetItemText}>{item.AcconutHolderName}</Text>
-                        <Text style={styles.sheetSubText}>{item.BankName} • {item.BankAccountNo}</Text>
-                      </View>
-                    </TouchableOpacity>
+                  {formData.paymentMethod === method && (
+                    <Text style={[styles.sheetCheck, { color: themeColor }]}>✓</Text>
                   )}
-                />
-              </View>
-            )}
-          </View>
-        </BottomSheet>
-      </KeyboardAvoidingView>
+                </View>
+              </TouchableOpacity>
+            ))
+          ) : (
+            <View style={styles.flashListWrap}>
+              <FlashList
+                data={bankList}
+                estimatedItemSize={70}
+                keyExtractor={item => item.BankAccountNo}
+                renderItem={({ item }) => (
+                  <TouchableOpacity
+                    style={styles.sheetItem}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      updateForm('selectedAccNo', item.BankAccountNo);
+                      closeSheet();
+                    }}
+                  >
+                    <Text style={styles.sheetItemText}>{item.AcconutHolderName}</Text>
+                    <Text style={styles.sheetSubText}>
+                      {item.BankName} • {item.BankAccountNo}
+                    </Text>
+                  </TouchableOpacity>
+                )}
+              />
+            </View>
+          )}
+        </View>
+      </BottomSheet>
     </SafeAreaView>
   );
 };
 
-export default PostoMain;
+export default React.memo(PostoMain);
 
-// --- Premium Styles (iOS Focused) ---
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#F2F2F7' },
-  header: { 
-    paddingBottom: hScale(25), 
-    borderBottomLeftRadius: 24, 
-    borderBottomRightRadius: 24,
-    elevation: 5,
+  container: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
   },
-  balanceContainer: {
+
+  // Header
+  header: {
+    paddingBottom: hScale(20),
+    borderBottomLeftRadius: wScale(28),
+    borderBottomRightRadius: wScale(28),
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 12 },
+      android: { elevation: 6 },
+    }),
+  },
+  headerTitle: {
+    color: '#FFF',
+    fontWeight: '700',
+  },
+  balanceRow: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255,255,255,0.12)',
-    marginHorizontal: wScale(20),
-    borderRadius: 18,
-    padding: hScale(16),
-    marginTop: 10,
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    marginHorizontal: wScale(16),
+    borderRadius: wScale(18),
+    padding: hScale(14),
+    marginTop: hScale(10),
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: 'rgba(255,255,255,0.25)',
   },
   balItem: { flex: 1, alignItems: 'center' },
-  balLabel: { color: 'rgba(255,255,255,0.7)', fontSize: 10, fontWeight: '700', letterSpacing: 0.5 },
-  balAmount: { color: '#FFF', fontSize: 19, fontWeight: '800', marginTop: 4 },
-  balDivider: { width: 1, height: '70%', backgroundColor: 'rgba(255,255,255,0.3)' },
-  
-  tabBar: { backgroundColor: '#FFF', elevation: 0, shadowOpacity: 0, borderBottomWidth: 1, borderBottomColor: '#E5E5EA' },
-  tabLabel: { fontWeight: '700', fontSize: 13, textTransform: 'none' },
-  tabContent: { padding: 20 },
-  
-  glassCard: {
-    backgroundColor: '#FFF',
-    padding: 20,
-    borderRadius: 20,
-    ...Platform.select({
-      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.05, shadowRadius: 10 },
-      android: { elevation: 2 }
-    })
+  balLabel: {
+    color: 'rgba(255,255,255,0.75)',
+    fontSize: wScale(9),
+    fontWeight: '700',
+    letterSpacing: 0.8,
   },
-  inputLabel: { fontSize: 12, fontWeight: '600', color: '#8E8E93', marginBottom: 8, marginTop: 10, textTransform: 'uppercase' },
+  balAmount: {
+    color: '#FFF',
+    fontSize: wScale(18),
+    fontWeight: '800',
+    marginTop: hScale(4),
+  },
+  balDivider: {
+    width: 1,
+    height: hScale(34),
+    backgroundColor: 'rgba(255,255,255,0.3)',
+  },
+
+  // Tabs
+  tabBar: {
+    backgroundColor: '#FFF',
+    elevation: 0,
+    shadowOpacity: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#E5E5EA',
+  },
+  tabIndicator: {
+    height: 3,
+    borderRadius: 2,
+  },
+  tabLabel: {
+    fontWeight: '700',
+    fontSize: wScale(12),
+    textTransform: 'none',
+  },
+
+  // Scene
+  sceneContent: {
+    padding: wScale(16),
+    paddingBottom: hScale(40),
+  },
+
+  // Cards
+  card: {
+    bottom:hScale(10),
+    backgroundColor: '#FFF',
+    borderRadius: wScale(20),
+    padding: wScale(18),
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8 },
+      android: { elevation: 2 },
+    }),
+  },
+  cardSpaced: {
+    marginTop: hScale(14),
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: hScale(14),
+    gap: wScale(8),
+  },
+  cardIcon: {
+    fontSize: wScale(18),
+  },
+  cardTitle: {
+    fontSize: wScale(15),
+    fontWeight: '700',
+    color: '#1C1C1E',
+  },
+
+  // Section label inside card
+  sectionLabel: {
+    fontSize: wScale(10),
+    fontWeight: '700',
+    color: '#8E8E93',
+    letterSpacing: 0.6,
+    textTransform: 'uppercase',
+    marginBottom: hScale(6),
+    marginTop: hScale(8),
+  },
+
+  // Selector
   selector: {
     backgroundColor: '#F2F2F7',
-    padding: 16,
-    borderRadius: 14,
+    paddingVertical: hScale(14),
+    paddingHorizontal: wScale(14),
+    borderRadius: wScale(12),
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 12
+    marginBottom: hScale(4),
   },
-  selectorText: { fontSize: 15, color: '#1C1C1E', fontWeight: '500' },
-  
-  primaryButton: {
-    height: 56,
-    borderRadius: 18,
+  selectorText: {
+    fontSize: wScale(14),
+    color: '#1C1C1E',
+    fontWeight: '500',
+  },
+
+  // Button
+  primaryBtn: {
+    height: hScale(54),
+    borderRadius: wScale(16),
+    flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 35,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.1,
-    shadowRadius: 10,
+    marginTop: hScale(24),
+    gap: wScale(8),
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8 },
+      android: { elevation: 3 },
+    }),
   },
-  buttonText: { color: '#FFF', fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
-  
-  bottomSheet: { 
-    backgroundColor: '#FFF', 
-    padding: 20, 
-    borderTopLeftRadius: 25, 
-    borderTopRightRadius: 25,
-    minHeight: 300 
+  btnText: {
+    color: '#FFF',
+    fontSize: wScale(14),
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
-  sheetHandle: { width: 40, height: 5, backgroundColor: '#E5E5EA', borderRadius: 10, alignSelf: 'center', marginBottom: 20 },
-  sheetTitle: { fontSize: 18, fontWeight: '700', color: '#1C1C1E', marginBottom: 15, textAlign: 'center' },
-  sheetItem: { paddingVertical: 16, borderBottomWidth: 0.5, borderBottomColor: '#F2F2F7' },
-  sheetItemText: { fontSize: 16, fontWeight: '600', color: '#1C1C1E' },
-  sheetSubText: { fontSize: 13, color: '#8E8E93', marginTop: 2 },
+  btnArrow: {
+    color: 'rgba(255,255,255,0.8)',
+    fontSize: wScale(16),
+    fontWeight: '700',
+  },
+
+  // Bottom Sheet
+  sheetOverlay: {
+    backgroundColor: 'rgba(0,0,0,0.45)',
+  },
+  sheet: {
+    backgroundColor: '#FFF',
+    padding: wScale(20),
+    borderTopLeftRadius: wScale(24),
+    borderTopRightRadius: wScale(24),
+    minHeight: hScale(280),
+  },
+  sheetHandle: {
+    width: wScale(36),
+    height: hScale(4),
+    backgroundColor: '#E5E5EA',
+    borderRadius: 10,
+    alignSelf: 'center',
+    marginBottom: hScale(18),
+  },
+  sheetTitle: {
+    fontSize: wScale(16),
+    fontWeight: '700',
+    color: '#1C1C1E',
+    marginBottom: hScale(14),
+    textAlign: 'center',
+  },
+  sheetItem: {
+    paddingVertical: hScale(13),
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#F2F2F7',
+  },
+  sheetItemInner: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  sheetItemText: {
+    fontSize: wScale(15),
+    fontWeight: '600',
+    color: '#1C1C1E',
+  },
+  sheetSubText: {
+    fontSize: wScale(12),
+    color: '#8E8E93',
+    marginTop: hScale(2),
+  },
+  sheetCheck: {
+    fontSize: wScale(16),
+    fontWeight: '700',
+  },
+  flashListWrap: {
+    height: hScale(300),
+  },
 });

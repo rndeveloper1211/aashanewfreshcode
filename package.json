@@ -1,6 +1,6 @@
 {
-  "name": "digital2pay",
-  "version": "0.0.1",
+  "name": "maxuspay",
+  "version": "0.0.8",
   "private": true,
   "scripts": {
     "android": "react-native run-android",

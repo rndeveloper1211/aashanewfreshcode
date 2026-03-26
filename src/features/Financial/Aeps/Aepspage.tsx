@@ -37,7 +37,6 @@ const AepsScreen = () => {
 
       // ERROR CHECK: Agar server se HTML (404 error) aa raha ho
       if (typeof response === 'string' && response.includes('<!DOCTYPE html>')) {
-        console.error('SERVER ERROR: URL galat hai ya API down hai (404 Not Found)');
         Alert.alert("API Error", "Server configuration issue (404). Please check APP_URLS.AepsStatusCheck");
         return;
       }

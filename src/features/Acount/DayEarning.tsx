@@ -1,275 +1,331 @@
-import { translate } from "../../utils/languageUtils/I18n";
-import React, { useState, useEffect } from 'react';
-import { View, Text, Button, FlatList, StyleSheet, TouchableOpacity, useColorScheme } from 'react-native';
+import React, { useState, useEffect, useCallback } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  Platform,
+  FlatList,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import axios from 'axios';
-import { useNavigation } from '@react-navigation/native';
+import { useSelector } from 'react-redux';
+import LinearGradient from 'react-native-linear-gradient';
+
+import { translate } from '../../utils/languageUtils/I18n';
 import useAxiosHook from '../../utils/network/AxiosClient';
 import { APP_URLS } from '../../utils/network/urls';
 import AppBarSecond from '../drawer/headerAppbar/AppBarSecond';
 import { hScale, wScale } from '../../utils/styles/dimensions';
 import { RootState } from '../../reduxUtils/store';
-import { useSelector } from 'react-redux';
-import LinearGradient from 'react-native-linear-gradient';
-import Calendarsvg from '../drawer/svgimgcomponents/Calendarsvg';
-import AadharPay from '../drawer/svgimgcomponents/AdharPaysvg';
-import RechargeSvg from '../drawer/svgimgcomponents/RechargeSvg';
-import Pansvg from '../drawer/svgimgcomponents/Pansvg';
-import IMPSsvg from '../drawer/svgimgcomponents/IMPSsvg';
-import Upisvg from '../drawer/svgimgcomponents/Upisvg';
-import SearchIcon from '../drawer/svgimgcomponents/Searchicon';
 import DateRangePicker from '../../components/DateRange';
+
+import AadharPay  from '../drawer/svgimgcomponents/AdharPaysvg';
+import RechargeSvg from '../drawer/svgimgcomponents/RechargeSvg';
+import Pansvg     from '../drawer/svgimgcomponents/Pansvg';
+import IMPSsvg    from '../drawer/svgimgcomponents/IMPSsvg';
+import Upisvg     from '../drawer/svgimgcomponents/Upisvg';
+
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const TODAY = new Date().toISOString().split('T')[0];
+
+const DUMMY_DATA = [
+  { Type: 'Aeps',    Amount: 0, TotalSuccess: 0, TotalPending: 0, TotalFailed: 0 },
+  { Type: 'Recharge',Amount: 0, TotalSuccess: 0, TotalPending: 0, TotalFailed: 0 },
+  { Type: 'Pancard', Amount: 0, TotalSuccess: 0, TotalPending: 0, TotalFailed: 0 },
+  { Type: 'DMT',     Amount: 0, TotalSuccess: 0, TotalPending: 0, TotalFailed: 0 },
+  { Type: 'UPI',     Amount: 0, TotalSuccess: 0, TotalPending: 0, TotalFailed: 0 },
+];
+
+const TYPE_CONFIG: Record<string, { icon: React.ReactNode; color: string; bg: string }> = {
+  Aeps:    { icon: <AadharPay color="#0A84FF"  />, color: '#0A84FF', bg: '#EFF6FF' },
+  Recharge:{ icon: <RechargeSvg color="#8B5CF6"/>, color: '#8B5CF6', bg: '#F5F3FF' },
+  Pancard: { icon: <Pansvg color="#F59E0B"     />, color: '#F59E0B', bg: '#FFFBEB' },
+  DMT:     { icon: <IMPSsvg color="#10B981"    />, color: '#10B981', bg: '#ECFDF5' },
+  UPI:     { icon: <Upisvg                     />, color: '#EF4444', bg: '#FEF2F2' },
+};
+
+const getConfig = (type: string) =>
+  TYPE_CONFIG[type] ?? { icon: null, color: '#8E8E93', bg: '#F2F2F7' };
+
+// ─── Stat Box ─────────────────────────────────────────────────────────────────
+
+const StatBox = ({
+  label,
+  value,
+  valueColor,
+}: {
+  label: string;
+  value: number;
+  valueColor: string;
+}) => (
+  <View style={styles.statBox}>
+    <Text style={styles.statLabel}>{label}</Text>
+    <Text style={[styles.statValue, { color: valueColor }]}>₹{value}</Text>
+  </View>
+);
+
+// ─── Report Card ──────────────────────────────────────────────────────────────
+
+const ReportCard = React.memo(({ item }: { item: any }) => {
+  const { icon, color, bg } = getConfig(item.Type);
+
+  return (
+    <View style={styles.card}>
+      {/* Top accent line */}
+      <View style={[styles.cardTopLine, { backgroundColor: color }]} />
+
+      <View style={styles.cardInner}>
+        {/* Header */}
+        <View style={styles.cardHeader}>
+          <View style={[styles.iconWrap, { backgroundColor: bg }]}>{icon}</View>
+
+          <View style={styles.cardTitleCol}>
+            <Text style={styles.particularLabel}>{translate("Particular")}</Text>
+            <Text style={[styles.typeName, { color }]}>{item.Type}</Text>
+          </View>
+
+          <View style={styles.earnCol}>
+            <Text style={styles.earnLabel}>{translate("Earn")}</Text>
+            <Text style={[styles.earnAmount, { color }]}>₹{item.Amount}</Text>
+          </View>
+        </View>
+
+        {/* Divider */}
+        <View style={styles.cardDivider} />
+
+        {/* Stats */}
+        <View style={styles.statsRow}>
+          <StatBox
+            label={translate("Total Success")}
+            value={item.TotalSuccess}
+            valueColor="#15803D"
+          />
+          <View style={styles.statDivider} />
+          <StatBox
+            label={translate("Total Pending")}
+            value={item.TotalPending}
+            valueColor="#92400E"
+          />
+          <View style={styles.statDivider} />
+          <StatBox
+            label={translate("Total Failed")}
+            value={item.TotalFailed}
+            valueColor="#B91C1C"
+          />
+        </View>
+      </View>
+    </View>
+  );
+});
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
 const DayEarningReport = () => {
   const { colorConfig, IsDealer } = useSelector((state: RootState) => state.userInfo);
-  const color1 = `${colorConfig.secondaryColor}20`
-  const [inforeport, setInforeport] = useState([]);
-  const [open, setOpen] = useState(false);
-  const navigation = useNavigation();
-  const { get, post } = useAxiosHook();
-  const colorScheme = useColorScheme();
-  const [selectedDate, setSelectedDate] = useState({
-    from: new Date().toISOString().split('T')[0],
-    to: new Date().toISOString().split('T')[0],
-  });
+  const primary:   string = colorConfig?.primaryColor   || '#0A84FF';
+  const secondary: string = colorConfig?.secondaryColor || '#0055FF';
+
+  const { get } = useAxiosHook();
+
+  const [inforeport,     setInforeport]     = useState<any[]>([]);
+  const [selectedDate,   setSelectedDate]   = useState({ from: TODAY, to: TODAY });
   const [selectedStatus, setSelectedStatus] = useState('ALL');
-  useEffect(() => {
-    DayE(selectedDate.from, selectedDate.to, selectedStatus);
-  }, []);
 
-  const onDateChange = (date) => {
-    setSelectedDate(date);
-    setOpen(false);
-  };
-
-  const DayE = async (from, to, status) => {
+  const fetchData = useCallback(async (from: string, to: string, status: string) => {
     try {
       const formattedFrom = new Date(from).toISOString().split('T')[0];
-      const formattedTo = new Date(to).toISOString().split('T')[0];
-      const url2 = `${APP_URLS.ShowActualIncome}${formattedFrom}`;
-      const url = `${APP_URLS.dayErm}${formattedFrom}`;
-      const response = await get({ url: IsDealer ? url2 : url });
-      console.log(response);
-
-      console.log(IsDealer ? url2 : url)
-      if (response.Status === 'Failed') {
-        setInforeport([]);
-      } else {
-        setInforeport(response.RESULT);
-
-      }
-
-    } catch (error) {
-      console.error('Error fetching data:', error);
+      const url = IsDealer
+        ? `${APP_URLS.ShowActualIncome}${formattedFrom}`
+        : `${APP_URLS.dayErm}${formattedFrom}`;
+      const response = await get({ url });
+      setInforeport(response?.Status === 'Failed' ? [] : response?.RESULT || []);
+    } catch (e) {
+      console.error('DayEarningReport fetch error:', e);
+      setInforeport([]);
     }
-  };
+  }, [IsDealer]);
 
-  const dummyData = [
-    { Type: 'Aeps', Amount: 0, TotalSuccess: 0, TotalPending: 0, TotalFailed: 0 },
-    { Type: 'Recharge', Amount: 0, TotalSuccess: 0, TotalPending: 0, TotalFailed: 0 },
-    { Type: 'Pancard', Amount: 0, TotalSuccess: 0, TotalPending: 0, TotalFailed: 0 },
-    { Type: 'DMT', Amount: 0, TotalSuccess: 0, TotalPending: 0, TotalFailed: 0 },
-    { Type: 'UPI', Amount: 0, TotalSuccess: 0, TotalPending: 0, TotalFailed: 0 },
-  ];
+  useEffect(() => {
+    fetchData(selectedDate.from, selectedDate.to, selectedStatus);
+  }, []);
 
+  const listData = inforeport.length > 0 ? inforeport : DUMMY_DATA;
 
-  const getIcon = (type) => {
-    switch (type) {
-      case 'Aeps':
-        return <AadharPay color='#000' />;
-      case 'Recharge':
-        return <RechargeSvg color='#000' />;
-      case 'Pancard':
-        return <Pansvg color='#000' />;
-      case 'DMT':
-        return <IMPSsvg color='#000' />;
-      case 'UPI':
-        return <Upisvg />;
-      default:
-        return null;
-    }
-  }
-  const isDarkTheme = colorScheme === 'dark';
-  const styles = getStyles(isDarkTheme);
-  const [selectedStartDate, setSelectedStartDate] = useState(null);
-  const [selectedEndDate, setSelectedEndDate] = useState(null);
-
-  const onDateChange1 = (date, type) => {
-    if (type === 'END_DATE') {
-      setSelectedEndDate(date);
-    } else {
-      setSelectedStartDate(date);
-      setSelectedEndDate(null);
-    }
-  };
   return (
-    <View style={styles.main}>
-      <AppBarSecond title={'Income Report'} />
+    <View style={styles.root}>
+      {/* AppBar */}
       <LinearGradient
-        colors={[colorConfig.primaryColor, colorConfig.secondaryColor]}
+        colors={[primary, secondary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientHeader}
       >
-        <DateRangePicker
-
-          onDateSelected={(from, to) => setSelectedDate({ from, to })}
-
-          SearchPress={(from, to, status) => DayE(from, to, status)}
-
-          status={selectedStatus}
-
-          setStatus={setSelectedStatus}
-
-          isStShow={false}
-
-          isshowRetailer={false}
-          retailerID={(id) => { console.log(id); }} setSearchnumber={function (string: any): void {
-            throw new Error('Function not implemented.');
-          }} cmsStatu={false} onlyFromDate={false}
-
+        <AppBarSecond
+          title={translate("Income Report")}
+          titlestyle={styles.appBarTitle}
         />
 
+        {/* Date Range Picker */}
+        <DateRangePicker
+          onDateSelected={(from, to) => setSelectedDate({ from, to })}
+          SearchPress={(from, to, status) => fetchData(from, to, status)}
+          status={selectedStatus}
+          setStatus={setSelectedStatus}
+          isStShow={false}
+          isshowRetailer={false}
+          retailerID={(id) => {}}
+          setSearchnumber={() => {}}
+          cmsStatu={false}
+          onlyFromDate={false}
+        />
       </LinearGradient>
 
-      <View style={styles.container}>
-
-
-        <FlatList
-          data={inforeport.length === 0 ? dummyData : inforeport}
-          keyExtractor={(item) => item.Type}
-          renderItem={({ item }) => (
-            <View style={[styles.reportItem, { backgroundColor: color1 }]}>
-              <Text style={styles.typeLabel}>{translate("Particular")}</Text>
-
-              <View style={styles.reportHeader}>
-
-                {getIcon(item.Type)}
-                <View style={styles.typeContainer}>
-
-                  <Text style={styles.type}>{item.Type}</Text>
-                </View>
-                <View style={styles.earnContainer}>
-                  <Text style={styles.earnLabel}>{translate("Earn")}</Text>
-                  <Text style={styles.earnAmount}>{`\u20B9 ${item.Amount}`}</Text>
-                </View>
-              </View>
-              <View style={styles.reportFooter}>
-                <View style={styles.footerItem}>
-                  <Text style={styles.footerLabel}>{translate("Total_Success")}</Text>
-                  <Text style={styles.footerAmount}>{`\u20B9 ${item.TotalSuccess}`}</Text>
-                </View>
-                <View style={styles.footerItem}>
-                  <Text style={styles.footerLabel}>{translate("Total_Pending")}</Text>
-                  <Text style={styles.footerAmount}>{`\u20B9 ${item.TotalPending}`}</Text>
-                </View>
-                <View style={styles.footerItem}>
-                  <Text style={styles.footerLabel}>{translate("Total_Failed")}</Text>
-                  <Text style={styles.footerAmount}>{`\u20B9 ${item.TotalFailed}`}</Text>
-                </View>
-              </View>
-            </View>
-          )}
-        />
-      </View>
+      {/* List */}
+      <FlatList
+        data={listData}
+        keyExtractor={item => item.Type}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        renderItem={({ item }) => <ReportCard item={item} />}
+      />
     </View>
   );
 };
 
-const getStyles = (isDarkTheme) => StyleSheet.create({
-  main: { flex: 1 },
-  container: {
+export default DayEarningReport;
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  root: {
     flex: 1,
-    padding: wScale(10),
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: wScale(10),
+    backgroundColor: '#F2F2F7',
   },
 
-  datePicker: {
-    paddingHorizontal: wScale(10),
-    borderRadius: 5,
+  gradientHeader: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+      },
+      android: { elevation: 6 },
+    }),
+  },
+  appBarTitle: {
+    color: '#FFF',
+    fontWeight: '700',
+  },
+
+  listContent: {
+    padding: wScale(14),
+    paddingBottom: hScale(32),
+    gap: hScale(12),
+  },
+
+  // ── Card ──────────────────────────────────────────────────────────────────
+  card: {
+    backgroundColor: '#FFF',
+    borderRadius: wScale(18),
+    overflow: 'hidden',
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  cardTopLine: {
+    height: hScale(3),
+  },
+  cardInner: {
+    padding: wScale(16),
+  },
+
+  // Card header
+  cardHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    borderWidth: wScale(1),
-    borderColor: '#fff',
-
+    gap: wScale(12),
   },
-  searchButton: {
+  iconWrap: {
+    width: wScale(46),
+    height: wScale(46),
+    borderRadius: wScale(12),
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: wScale(15),
-    backgroundColor: '#007bff',
-    borderRadius: 5,
-    borderWidth: wScale(1),
-    borderColor: '#fff',
-    paddingVertical: hScale(4)
   },
-  dateText: {
-    color: '#fff',
-    fontSize: wScale(16),
-  },
-  date: {
-    color: '#fff',
-    fontSize: wScale(14),
-  },
-
-  reportItem: {
-    padding: wScale(10),
-    borderRadius: 5,
-    marginBottom: hScale(10),
-  },
-  reportHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  typeContainer: {
+  cardTitleCol: {
     flex: 1,
-    marginLeft: wScale(5),
+    gap: hScale(2),
   },
-  typeLabel: {
-    fontSize: wScale(11),
-    color: '#000',
-    paddingBottom: hScale(4)
+  particularLabel: {
+    fontSize: wScale(10),
+    color: '#8E8E93',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  type: {
-    fontSize: wScale(14),
-    fontWeight: 'bold',
-    color: '#000',
+  typeName: {
+    fontSize: wScale(16),
+    fontWeight: '800',
+    letterSpacing: 0.2,
   },
-  earnContainer: {
+  earnCol: {
     alignItems: 'flex-end',
+    gap: hScale(2),
   },
   earnLabel: {
-    fontSize: wScale(11),
-    color: '#000',
+    fontSize: wScale(10),
+    color: '#8E8E93',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   earnAmount: {
-    fontSize: wScale(14),
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: wScale(18),
+    fontWeight: '800',
+    letterSpacing: -0.3,
   },
-  reportFooter: {
+
+  // Divider
+  cardDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E5E5EA',
+    marginVertical: hScale(12),
+  },
+
+  // Stats row
+  statsRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: hScale(10),
-  },
-  footerItem: {
     alignItems: 'center',
-    borderWidth: wScale(.5),
-    borderRadius: 100,
-    paddingHorizontal: wScale(20),
-    paddingVertical: hScale(2)
   },
-  footerLabel: {
-    fontSize: wScale(12),
-    color: '#000',
+  statBox: {
+    flex: 1,
+    alignItems: 'center',
+    gap: hScale(3),
   },
-  footerAmount: {
+  statLabel: {
+    fontSize: wScale(9),
+    color: '#8E8E93',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.3,
+    textAlign: 'center',
+  },
+  statValue: {
     fontSize: wScale(14),
-    fontWeight: 'bold',
-    color: '#000',
+    fontWeight: '800',
+    letterSpacing: -0.2,
+  },
+  statDivider: {
+    width: StyleSheet.hairlineWidth,
+    height: hScale(30),
+    backgroundColor: '#E5E5EA',
   },
 });
-
-export default DayEarningReport;

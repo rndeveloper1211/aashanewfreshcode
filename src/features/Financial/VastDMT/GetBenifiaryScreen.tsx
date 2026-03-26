@@ -270,16 +270,7 @@ const [isload,setIsload]= useState(false)
     );
   };
 
-  const handleVerifyPress = async (item) => {
 
-    try {
-      const res = await post({ url: `${APP_URLS.verifyBank}sender_number=${sendernum}&Accountnumber=${item['account']}&bankname=${item['bank']}&benIFSC=${item['ifsc']}&Name=${item['name']}&Id=${item['id']}uniqueid=${unqid}` })
-
-      console.log(res);
-    } catch (error) {
-
-    }
-  };
 
   const toggleEditable = () => {
     setEditable(!editable);
@@ -308,75 +299,100 @@ const filterData = (text) => {
   }
 };
 
-  const BeneficiaryList = () => {
-        console.log("************^#%%%%%%%%%",filteredData)
-
+ const BeneficiaryList = () => {
+    console.log("************^#%%%%%%%%%", filteredData);
+ 
     return (
-  
       <FlashList
         data={filteredData}
+        keyExtractor={item => item.id}
+        estimatedItemSize={160}
+        contentContainerStyle={{ paddingHorizontal: wScale(12), paddingVertical: hScale(8) }}
         renderItem={({ item }) => (
           <View style={styles.itemContainer}>
-
-            {item.isbankdown ? (
-              <Text style={styles.noteText}>{translate("Note_Currently_the_beneficiary_banks_server_is_down_or_busy_please_try_after_sometime")}</Text>
-            ) : null}
-
-            <View style={{
-              borderBottomWidth: wScale(.5), borderBottomColor: '#000',
-
-              marginBottom: hScale(8), paddingBottom: hScale(5)
-            }}>
-
-              <View style={styles.row}>
-                <Text style={styles.itemLabel}>{translate("Name")}</Text>
-                <Text style={styles.itemValue}>{item.name}</Text>
+ 
+            {/* Bank Down Warning */}
+            {item.isbankdown && (
+              <View style={styles.warningBanner}>
+                <Text style={styles.warningIcon}>⚠️</Text>
+                <Text style={styles.noteText} numberOfLines={2}>
+                  {translate("Note_Currently_the_beneficiary_banks_server_is_down_or_busy_please_try_after_sometime")}
+                </Text>
               </View>
-
-              <View style={styles.row}>
-                <Text style={styles.itemLabel}>{translate("IFSC_Code")}</Text>
-                <Text style={styles.itemValue}>{item.ifsc}</Text>
+            )}
+ 
+            {/* Top: Avatar + Name + IFSC */}
+            <View style={styles.cardTop}>
+              <View style={[styles.avatar, { backgroundColor: `${colorConfig.secondaryColor}18` }]}>
+                <Text style={[styles.avatarText, { color: colorConfig.secondaryColor }]}>
+                  {item.name?.charAt(0)?.toUpperCase() ?? '?'}
+                </Text>
               </View>
-            </View>
-
-            <View style={[styles.row,]}>
-              <Text style={styles.itemLabel}>{translate("Bank_Name")}</Text>
-              <Text style={styles.itemValue} numberOfLines={1} ellipsizeMode='tail'>{item.bank}</Text>
-            </View>
-            <View style={{
-              borderTopWidth: wScale(.5), borderTopColor: '#000',
-              marginTop: hScale(8)
-            }}>
-
-              <View style={[styles.row, { marginTop: hScale(8), }]}>
-                <View >
-                  <Text style={styles.itemLabel}>{translate("Account")}</Text>
-                  <Text style={[styles.itemValue, { textAlign: 'left' }]} numberOfLines={1} ellipsizeMode='tail'>{item.account}</Text>
+ 
+              <View style={styles.cardTopInfo}>
+                <Text style={styles.nameText} numberOfLines={1}>{item.name}</Text>
+                <View style={styles.ifscBadge}>
+                  <Text style={styles.ifscLabel}>{translate("IFSC_Code")}  </Text>
+                  <Text style={styles.ifscValue}>{item.ifsc}</Text>
                 </View>
-                <TouchableOpacity style={[styles.button, styles.impsButton]} onPress={() => handleImpsPress(item)}>
-                  <Text style={styles.buttonText}>{translate("IMPS")}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.button, styles.neftButton]} onPress={() => handleNeftPress(item)}>
-                  <Text style={styles.buttonText}>{translate("NEFT")}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity style={[styles.button, styles.deleteButton]} onPress={() => handleDeletePress(item)}>
-                  <Text style={styles.buttonText} >{translate("Delete")}</Text>
-                </TouchableOpacity>
-                {/* {item.isverified === true ? null : (
-                  <TouchableOpacity style={[styles.button, styles.verifyButton]} onPress={() => handleVerifyPress(item)}>
-                    {item.isLoading ? <ActivityIndicator color="white" /> : <Text style={styles.buttonText}>{translate("Verify")}</Text>}
-                  </TouchableOpacity>
-                )} */}
               </View>
             </View>
-
+ 
+            {/* Divider */}
+            <View style={styles.divider} />
+ 
+            {/* Middle: Bank + Account */}
+            <View style={styles.infoGrid}>
+              <View style={styles.infoCell}>
+                <Text style={styles.cellLabel}>{translate("Bank_Name")}</Text>
+                <Text style={styles.cellValue} numberOfLines={1} ellipsizeMode="tail">{item.bank}</Text>
+              </View>
+              <View style={styles.infoCellDivider} />
+              <View style={[styles.infoCell, { alignItems: 'flex-end' }]}>
+                <Text style={styles.cellLabel}>{translate("Account")}</Text>
+                <Text style={styles.cellValue} numberOfLines={1} ellipsizeMode="tail">{item.account}</Text>
+              </View>
+            </View>
+ 
+            {/* Divider */}
+            <View style={styles.divider} />
+ 
+            {/* Bottom: Action Buttons */}
+            <View style={styles.btnRow}>
+              <TouchableOpacity
+                style={[styles.actionChip, { backgroundColor: '#1D6FE8' }]}
+                onPress={() => handleImpsPress(item)}
+                activeOpacity={0.82}
+              >
+                <Text style={styles.chipText}>{translate("IMPS")}</Text>
+              </TouchableOpacity>
+ 
+              <TouchableOpacity
+                style={[styles.actionChip, { backgroundColor: '#16A34A' }]}
+                onPress={() => handleNeftPress(item)}
+                activeOpacity={0.82}
+              >
+                <Text style={styles.chipText}>{translate("NEFT")}</Text>
+              </TouchableOpacity>
+ 
+              <View style={styles.chipSpacer} />
+ 
+              <TouchableOpacity
+                style={[styles.actionChip, styles.deleteChip]}
+                onPress={() => handleDeletePress(item)}
+                activeOpacity={0.82}
+              >
+                <Text style={styles.deleteChipText}>{translate("Delete")}</Text>
+              </TouchableOpacity>
+            </View>
+ 
           </View>
         )}
-        keyExtractor={item => item.id}
-        estimatedItemSize={5}
       />
     );
   };
+ 
+ 
 
 
 
@@ -723,7 +739,131 @@ const styles = StyleSheet.create({
     height: '100%',
     width: wScale(0.7),
     backgroundColor: "#fff",
-  }
+  },
+
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FFF7ED',
+    paddingHorizontal: wScale(12),
+    paddingVertical: hScale(8),
+    borderBottomWidth: 1,
+    borderBottomColor: '#FED7AA',
+    gap: wScale(6),
+  },
+  warningIcon: { fontSize: wScale(13), marginTop: 1 },
+ 
+ 
+  // Card Top
+  cardTop: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: wScale(14),
+    paddingTop: hScale(14),
+    paddingBottom: hScale(10),
+    gap: wScale(12),
+  },
+  avatar: {
+    width: wScale(44),
+    height: wScale(44),
+    borderRadius: wScale(22),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: {
+    fontSize: wScale(20),
+    fontWeight: '800',
+  },
+  cardTopInfo: { flex: 1 },
+  nameText: {
+    fontSize: wScale(15),
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: hScale(3),
+  },
+  ifscBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  ifscLabel: {
+    fontSize: wScale(11),
+    color: '#9CA3AF',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  ifscValue: {
+    fontSize: wScale(12),
+    color: '#374151',
+    fontWeight: '600',
+    letterSpacing: 0.3,
+  },
+ 
+  // Info Grid
+  divider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginHorizontal: wScale(14),
+  },
+  infoGrid: {
+    flexDirection: 'row',
+    paddingHorizontal: wScale(14),
+    paddingVertical: hScale(10),
+    alignItems: 'center',
+  },
+  infoCell: { flex: 1 },
+  infoCellDivider: {
+    width: 1,
+    height: hScale(30),
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: wScale(12),
+  },
+  cellLabel: {
+    fontSize: wScale(10),
+    color: '#9CA3AF',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+    marginBottom: 2,
+  },
+  cellValue: {
+    fontSize: wScale(13),
+    color: '#1F2937',
+    fontWeight: '600',
+  },
+ 
+  // Buttons
+  btnRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: wScale(14),
+    paddingVertical: hScale(10),
+    gap: wScale(6),
+  },
+  actionChip: {
+    paddingHorizontal: wScale(16),
+    paddingVertical: hScale(9),
+    borderRadius: wScale(8),
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  chipText: {
+    color: '#fff',
+    fontSize: wScale(13),
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
+  chipSpacer: { flex: 1 },
+  deleteChip: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  deleteChipText: {
+    color: '#DC2626',
+    fontSize: wScale(13),
+    fontWeight: '700',
+  },
 });
 
 export default GetBenifiaryScreen;

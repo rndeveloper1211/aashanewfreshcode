@@ -94,37 +94,37 @@ const SignUpKyc = () => {
   const [aadharb, setAdharb] = useState<any>(null);
   const [PanImage, setPanImage] = useState<any>(null);
   const [gstImage, setgstImage] = useState<any>(null);
-  const uploadImage = async (setImage, image) => {
-    const result = await launchImageLibrary({
-      selectionLimit: 1,
-      mediaType: 'photo',
-      includeBase64: true,
-    });
-    console.log(result)
-    if (result?.assets && result?.assets.length > 0) {
-      const base64Image = result?.assets[0]?.base64;
-      switch (image) {
-        case 'Aadhar Front':
-          setAadharFront(base64Image);
-          setAdharf(base64Image);
-          break;
-        case 'Aadhar Back':
-          setAadharBack(base64Image);
-          setAdharb(base64Image);
-          break;
-        case 'GST Image':
-          setGstImg(base64Image);
-          setgstImage(base64Image);
-          break;
-        case 'PAN Card':
-          setPanImg(base64Image);
-          setPanImage(base64Image);
-          break;
-        default:
-          break;
-      }
-    }
-  };
+  // const uploadImage = async (setImage, image) => {
+  //   const result = await launchImageLibrary({
+  //     selectionLimit: 1,
+  //     mediaType: 'photo',
+  //     includeBase64: true,
+  //   });
+  //   console.log(result)
+  //   if (result?.assets && result?.assets.length > 0) {
+  //     const base64Image = result?.assets[0]?.base64;
+  //     switch (image) {
+  //       case 'Aadhar Front':
+  //         setAadharFront(base64Image);
+  //         setAdharf(base64Image);
+  //         break;
+  //       case 'Aadhar Back':
+  //         setAadharBack(base64Image);
+  //         setAdharb(base64Image);
+  //         break;
+  //       case 'GST Image':
+  //         setGstImg(base64Image);
+  //         setgstImage(base64Image);
+  //         break;
+  //       case 'PAN Card':
+  //         setPanImg(base64Image);
+  //         setPanImage(base64Image);
+  //         break;
+  //       default:
+  //         break;
+  //     }
+  //   }
+  // };
 
   return (
 <KeyboardAwareScrollView

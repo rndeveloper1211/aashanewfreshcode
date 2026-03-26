@@ -8,7 +8,6 @@ import { useSelector } from "react-redux";
 import SwitchButton2 from "../../drawer/settingPages/SwitchButton2";
 import Icon from 'react-native-vector-icons/FontAwesome';  // or another icon set like MaterialIcons
 import Entypo from 'react-native-vector-icons/Entypo';  // or another icon set like MaterialIcons
-import { launchCamera, launchImageLibrary } from "react-native-image-picker";
 import { useNavigation } from "@react-navigation/native";
 import { ALERT_TYPE, Dialog, Toast } from "react-native-alert-notification";
 import { openSettings } from "react-native-permissions";
@@ -221,52 +220,7 @@ const RetailerList = () => {
             Alert.alert('Error', `Failed to upload ${typ} Image: ${error.message}`);
         }
     };
-    const UploadOptions = (Typename, id) => {
-        Alert.alert(
-            'Select Option',
-            ``,
-            [
-                {
-                    text: 'Cancel',
-                    //   onPress: () => { setshowLoader(false) },
-                    style: 'cancel',
-                },
-                {
-                    text: 'Camera',
-                    onPress: async () => {
-
-                        const options = {
-                            mediaType: 'image',
-                        };
-
-                        await launchCamera({ mediaType: 'photo', includeBase64: true }, (response) => {
-                            //  setbase64Img(response?.assets?.[0]?.base64)
-
-                            if (response?.assets?.[0]?.base64) {
-                                uploadDoCx(Typename, response?.assets?.[0]?.base64, id);
-                            }
-                        })
-                    },
-                    style: 'default',
-                },
-                {
-                    text: 'Gallary',
-                    onPress: async () => {
-
-                        await launchImageLibrary({ selectionLimit: 1, mediaType: 'photo', includeBase64: true }, (response) => {
-
-                            if (response?.assets?.[0]?.base64) {
-                                uploadDoCx(Typename, response?.assets?.[0]?.base64, id);
-                            }
-                        });
-
-
-                    },
-                },
-            ],
-            { cancelable: false }
-        );
-    }
+  
     const [selectedItemIndex, setSelectedItemIndex] = useState(null);
     const [imagePath, setImagePath] = useState(null)
     const handlePress = () => {

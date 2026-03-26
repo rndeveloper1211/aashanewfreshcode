@@ -20,7 +20,6 @@ import { RootState } from "../../../reduxUtils/store";
 import LottieView from "lottie-react-native";
 import { APP_URLS } from "../../../utils/network/urls";
 import useAxiosHook from "../../../utils/network/AxiosClient";
-import { launchCamera, launchImageLibrary } from "react-native-image-picker";
 import ImagePreviewModal from "./ImagePreviewModal";
 import { RadiantContext } from "./RadiantContext";
 import ShowLoader from "../../../components/ShowLoder";

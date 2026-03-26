@@ -1,332 +1,403 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Image } from 'react-native';
+import React, { useEffect, useState, useCallback } from 'react';
+import {
+  View, Text, StyleSheet, TouchableOpacity,
+  Image, Platform,
+} from 'react-native';
 import { useSelector } from 'react-redux';
-import AppBarSecond from '../drawer/headerAppbar/AppBarSecond';
-import LinearGradient from 'react-native-linear-gradient';
-import DateRangePicker from '../../components/DateRange';
 import { FlashList } from '@shopify/flash-list';
+import LinearGradient from 'react-native-linear-gradient';
+
+import AppBarSecond from '../drawer/headerAppbar/AppBarSecond';
+import DateRangePicker from '../../components/DateRange';
 import { hScale, wScale } from '../../utils/styles/dimensions';
 import { APP_URLS } from '../../utils/network/urls';
 import useAxiosHook from '../../utils/network/AxiosClient';
 import { RootState } from '../../reduxUtils/store';
 import NoDatafound from '../drawer/svgimgcomponents/Nodatafound';
+import SkeletonCard from '../../components/SkeletonCard';
 import { translate } from '../../utils/languageUtils/I18n';
 
-const RToRReport = () => {
-    const { colorConfig, IsDealer } = useSelector((state: RootState) => state.userInfo);
-    const color1 = `${colorConfig.secondaryColor}20`;
-    const [selectedRetailerId, setSelectedRetailerId] = useState('');
+// ─── Skeleton List ────────────────────────────────────────────────────────────
 
-    const { userId } = useSelector((state: RootState) => state.userInfo);
-    const [loading, setLoading] = useState(false);
-    const [transactions, setTransactions] = useState([]);
-    const { post, get } = useAxiosHook();
-    const [selectedDate, setSelectedDate] = useState({
-        from: new Date().toISOString().split('T')[0],
-        to: new Date().toISOString().split('T')[0],
-    });
-    const [selectedStatus, setSelectedStatus] = useState('ALL');
+const SkeletonList = () => (
+  <View style={styles.skeletonWrap}>
+    {[...Array(6)].map((_, i) => <SkeletonCard key={i} />)}
+  </View>
+);
 
+// ─── Stat Cell ────────────────────────────────────────────────────────────────
 
-    const Rtor = async (from, to, status) => {
-        setLoading(true);
+const StatCell = ({
+  label, value, align = 'center', color,
+}: {
+  label: string; value: string;
+  align?: 'flex-start' | 'center' | 'flex-end';
+  color?: string;
+}) => (
+  <View style={[styles.statCell, { alignItems: align }]}>
+    <Text style={styles.statLabel}>{label}</Text>
+    <Text style={[styles.statValue, color ? { color } : null]}>{value}</Text>
+  </View>
+);
 
-        try {
-            const formattedFrom = new Date(from).toISOString().split('T')[0];
-            const formattedTo = new Date(to).toISOString().split('T')[0];
-            const url = `${APP_URLS.RtorReport}txt_frm_date=${formattedFrom}&txt_to_date=${formattedTo}&RetailerId1=${userId}`;
-            if (IsDealer) {
-                const dealerUrl = `${APP_URLS.dealer_fund_trans_history}dlmid=${userId}&txt_frm_date=${formattedFrom}&txt_to_date=${formattedTo}&remid=${selectedRetailerId}`;
-                console.log('Dealer URL:', dealerUrl);
-                console.log('selectedRetailerId****:', selectedRetailerId);
-                const response2 = await get({ url: dealerUrl });
-                console.log('Dealer Response:', response2);
-                if (!response2) {
-                    throw new Error('Network response was not ok');
-                }
-                //setInforeport(response2);
-                setTransactions(response2);
+// ─── Retailer Card (R to R) ───────────────────────────────────────────────────
 
-                return;
-            }
-            const response = await post({ url: url });
+const RetailerCard = React.memo(({ item, themeColor, secondaryColor }: {
+  item: any; themeColor: string; secondaryColor: string;
+}) => (
+  <View style={styles.card}>
+    {/* Gradient header */}
+    <LinearGradient
+      colors={[themeColor, secondaryColor]}
+      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+      style={styles.cardHeader}
+    >
+      <View style={styles.cardShine} pointerEvents="none" />
+      <View style={styles.headerLeft}>
+        <Text style={styles.headerName} numberOfLines={1}>
+          {item.transfertoretailername || '—'}
+        </Text>
+        <Text style={styles.headerSub}>{translate("Name")}</Text>
+      </View>
+      <View style={styles.headerRight}>
+        <Text style={styles.headerAmountLabel}>{translate("Amount")}</Text>
+        <Text style={styles.headerAmount}>₹{item.value?.toFixed(2)}</Text>
+      </View>
+    </LinearGradient>
 
-            console.log(response, url, 'response');
-            setTransactions(response.Report);
+    {/* Body */}
+    <View style={styles.cardBody}>
+      {/* Date pill */}
+      <View style={styles.metaRow}>
+        <View style={styles.datePill}>
+          <Text style={styles.dateText}>{item.tran_date || '—'}</Text>
+        </View>
+      </View>
+      <View style={styles.divider} />
+      {/* Pre / Post balance */}
+      <View style={styles.statsRow}>
+        <StatCell
+          label={translate("Pre Balance")}
+          value={`₹${item.rem_from_old_bal?.toFixed(2)}`}
+          align="flex-start"
+        />
+        <View style={styles.statDivider} />
+        <StatCell
+          label={translate("Post Balance")}
+          value={`₹${item.rem_from_new?.toFixed(2)}`}
+          color={themeColor}
+        />
+        <View style={styles.statDivider} />
+        <StatCell
+          label={translate("Amount")}
+          value={`₹${item.value?.toFixed(2)}`}
+          align="flex-end"
+          color="#15803D"
+        />
+      </View>
+    </View>
+  </View>
+));
 
-        } catch (error) {
-            console.log(error);
-        } finally {
-            setLoading(false);
+// ─── Dealer Card (Fund Transfer) ─────────────────────────────────────────────
+
+const DealerCard = React.memo(({ item, themeColor, secondaryColor }: {
+  item: any; themeColor: string; secondaryColor: string;
+}) => (
+  <View style={styles.card}>
+    {/* Gradient header with avatar */}
+    <LinearGradient
+      colors={[themeColor, secondaryColor]}
+      start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+      style={styles.cardHeader}
+    >
+      <View style={styles.cardShine} pointerEvents="none" />
+
+      <Image
+        resizeMode="cover"
+        source={
+          item.ProfileImages
+            ? { uri: `http://${APP_URLS.baseWebUrl}${item.ProfileImages}` }
+            : require('../../features/drawer/assets/bussiness-man.png')
         }
-    };
+        style={styles.avatar}
+      />
 
-    useEffect(() => {
-        Rtor(selectedDate.from, selectedDate.to, IsDealer ? selectedStatus : '');
-    }, []);
-
-    const renderItem = ({ item }) => (
-        <View style={[styles.cardContainer, { backgroundColor: color1 }]}>
-            <View style={styles.balanceRow}>
-
-                <View >
-                    <Text style={styles.cardTitle}>{translate("Name")}</Text>
-                    <Text style={styles.cardValue}>{item.transfertoretailername}</Text>
-                </View>
-                <View style={styles.balanceColumnRight}>
-                    <Text style={styles.cardTitle}>{translate("Date")}</Text>
-                    <Text style={styles.cardValue}>{item.tran_date}</Text>
-                </View>
-            </View>
-
-            <View style={styles.balanceRow}>
-                <View style={styles.balanceColumnLeft}>
-                    <Text style={styles.cardTitle}>{translate("Pre_Balance")}</Text>
-                    <Text style={styles.cardValue}>₹ {item.rem_from_old_bal.toFixed(2)}</Text>
-                </View>
-                <View style={styles.balanceColumnCenter}>
-                    <Text style={[styles.cardTitle,]}>{translate("Post_Balance")}</Text>
-                    <Text style={styles.cardValue}>₹ {item.rem_from_new.toFixed(2)}</Text>
-                </View>
-                <View style={styles.balanceColumnRight}>
-                    <Text style={styles.cardTitle}>{translate("Amount")}</Text>
-                    <Text style={styles.cardValue}>₹ {item.value.toFixed(2)}</Text>
-                </View>
-            </View>
+      <View style={styles.headerLeft}>
+        <Text style={styles.headerName} numberOfLines={1}>
+          {item.FirmName || '....'}
+        </Text>
+        <View style={styles.typeBadge}>
+          <Text style={styles.typeBadgeText}>{item.Type}</Text>
         </View>
-    );
+      </View>
 
-    const renderItem2 = ({ item }) => (
-        console.log(item.ProfileImages),
-        <View>
-            <View style={[styles.itemContainer, { backgroundColor: color1 }]}>
-                <View style={styles.row}>
-                    <View style={styles.leftColumn}>
-                        <TouchableOpacity >
-                            <Image
-                                resizeMode="cover"
-                                source={
-                                    item.ProfileImages
-                                        ? { uri: `http://${APP_URLS.baseWebUrl}${item.ProfileImages}` }
-                                        : require('../../features/drawer/assets/bussiness-man.png')
-                                }
-                                style={styles.image}
-                            />
-                        </TouchableOpacity>
-                        <View >
-                            <Text style={styles.label}>{'FirmName'}</Text>
-                            <Text style={styles.value}>{item.FirmName === '' ? '....' : item.FirmName}</Text>
-                        </View>
-                    </View>
+      <View style={styles.headerRight}>
+        <Text style={styles.headerAmountLabel}>Amount</Text>
+        <Text style={styles.headerAmount}>₹{item.Balance}</Text>
+      </View>
+    </LinearGradient>
 
-                    <View style={styles.rightColumn}>
-                        <Text style={styles.label}>{'Type'}</Text>
-                        <Text style={styles.value}>{item.Type}</Text>
-
-                    </View>
-                </View>
-                <View style={[styles.border2, { backgroundColor: colorConfig.secondaryColor, marginTop: hScale(4) }]} />
-
-                <View style={styles.row}>
-                    <View style={styles.leftColumn}>
-
-                        <View >
-                            <Text style={styles.label}>{'Net T/F'}</Text>
-                            <Text style={styles.value}>₹ {item.TotalBal}</Text>
-                        </View>
-                    </View>
-
-                    <View style={styles.rightColumn}>
-                        <Text style={styles.label}>{'Amount'}</Text>
-                        <Text style={styles.value}>₹ {item.Balance}</Text>
-
-                    </View>
-                </View>
-                <View style={[styles.border2, { backgroundColor: colorConfig.secondaryColor }]} />
-
-                <View style={styles.row}>
-                    <View style={styles.leftColumn}>
-                        <View >
-                            <Text style={styles.label}>{'Date'}</Text>
-                            <Text style={styles.value}>{item.Date !== null ? `${item.Date}` : 'N/A'}</Text>
-
-                        </View>
-                    </View>
-
-                    <View style={styles.rightColumn}>
-                        <Text style={styles.label}>{'Charge'}</Text>
-                        <Text style={styles.value}>₹ {item.Commission}</Text>
-
-                    </View>
-                </View>
-
-                <View style={[styles.border2, { backgroundColor: colorConfig.secondaryColor, marginBottom: hScale(4) }]} />
-
-                <View style={styles.row}>
-                    <View style={styles.column}>
-                        <Text style={styles.label}>{'Pre Bal'}</Text>
-                        <Text style={styles.value}>₹ {item.RetailerOldBal}</Text>
-                    </View>
-                    <View style={[styles.border, { backgroundColor: colorConfig.secondaryColor }]} />
-
-                    <View style={styles.column}>
-                        <Text style={styles.label}>{'Post Bal'}</Text>
-                        <Text style={styles.value}>₹ {item.RetailerCurrentBal}</Text>
-                    </View>
-                    <View style={[styles.border, { backgroundColor: colorConfig.secondaryColor }]} />
-                    <View style={styles.column}>
-                        <Text style={styles.label}>{'Old Cr'}</Text>
-                        <Text style={styles.value}>{item.RetailerOldCr !== null ? `₹ ${item.RetailerOldCr}` : 'N/A'}</Text>
-
-                    </View>
-                </View>
-            </View>
+    {/* Body */}
+    <View style={styles.cardBody}>
+      {/* Date + Net T/F row */}
+      <View style={styles.metaRow}>
+        <View style={styles.datePill}>
+          <Text style={styles.dateText}>{item.Date ?? 'N/A'}</Text>
         </View>
-    );
-
-
-    return (
-        <View style={styles.main}>
-            <AppBarSecond title={IsDealer ? 'Fund Transfer Report' : 'R To R History'} />
-
-            <DateRangePicker
-                onDateSelected={(from, to) => setSelectedDate({ from, to })}
-                SearchPress={(from, to, status) => Rtor(from, to, status)}
-                status={selectedStatus}
-                setStatus={setSelectedStatus}
-                isStShow={false}
-                isshowRetailer={IsDealer}
-                retailerID={(id) => {
-                    Rtor(selectedDate.from, selectedDate.to, status = 'ALL')
-                    console.log(id); // You can still log it for debugging
-                    setSelectedRetailerId(id); // Store the selected retailer ID
-                }}
-
-            />
-
-
-
-            <View style={styles.container}>
-
-                {loading ? <ActivityIndicator size="large" color={colorConfig.secondaryColor} /> : !Array.isArray(transactions) || transactions.length === 0 ? <NoDatafound /> :
-                    <FlashList
-                        data={transactions}
-                        renderItem={IsDealer ? renderItem2 : renderItem}
-                        keyExtractor={(item, index) => index.toString()}
-                    />}
-            </View>
+        <View style={[styles.netBadge, { backgroundColor: `${themeColor}18` }]}>
+          <Text style={styles.netLabel}>Net T/F</Text>
+          <Text style={[styles.netValue, { color: themeColor }]}>₹{item.TotalBal}</Text>
         </View>
-    );
+      </View>
+
+      <View style={styles.divider} />
+
+      {/* Pre Bal / Post Bal / Old Cr / Charge */}
+      <View style={styles.statsRow}>
+        <StatCell
+          label="Pre Bal"
+          value={`₹${item.RetailerOldBal}`}
+          align="flex-start"
+        />
+        <View style={styles.statDivider} />
+        <StatCell
+          label="Post Bal"
+          value={`₹${item.RetailerCurrentBal}`}
+          color={themeColor}
+        />
+        <View style={styles.statDivider} />
+        <StatCell
+          label="Old Cr"
+          value={item.RetailerOldCr != null ? `₹${item.RetailerOldCr}` : 'N/A'}
+        />
+        <View style={styles.statDivider} />
+        <StatCell
+          label="Charge"
+          value={`₹${item.Commission}`}
+          align="flex-end"
+          color="#92400E"
+        />
+      </View>
+    </View>
+  </View>
+));
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+const RToRReport = () => {
+  const { colorConfig, IsDealer, userId } = useSelector((state: RootState) => state.userInfo);
+  const primary:   string = colorConfig?.primaryColor   || '#0A84FF';
+  const secondary: string = colorConfig?.secondaryColor || '#0055FF';
+
+  const { post, get } = useAxiosHook();
+  const [loading,            setLoading]            = useState(false);
+  const [transactions,       setTransactions]       = useState<any[]>([]);
+  const [selectedRetailerId, setSelectedRetailerId] = useState('');
+  const [selectedDate,       setSelectedDate]       = useState({
+    from: new Date().toISOString().split('T')[0],
+    to:   new Date().toISOString().split('T')[0],
+  });
+  const [selectedStatus, setSelectedStatus] = useState('ALL');
+
+  const fetchData = useCallback(async (from: string, to: string, status: string, retailerId = selectedRetailerId) => {
+    setLoading(true);
+    try {
+      const formattedFrom = new Date(from).toISOString().split('T')[0];
+      const formattedTo   = new Date(to).toISOString().split('T')[0];
+
+      if (IsDealer) {
+        const dealerUrl = `${APP_URLS.dealer_fund_trans_history}dlmid=${userId}&txt_frm_date=${formattedFrom}&txt_to_date=${formattedTo}&remid=${retailerId}`;
+        const response = await get({ url: dealerUrl });
+        setTransactions(response || []);
+      } else {
+        const url = `${APP_URLS.RtorReport}txt_frm_date=${formattedFrom}&txt_to_date=${formattedTo}&RetailerId1=${userId}`;
+        const response = await post({ url });
+        setTransactions(response?.Report || []);
+      }
+    } catch (e) {
+      console.error('RToRReport fetch error:', e);
+      setTransactions([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [IsDealer, userId, selectedRetailerId]);
+
+  useEffect(() => {
+    fetchData(selectedDate.from, selectedDate.to, '');
+  }, []);
+
+  const renderRetailer = useCallback(
+    ({ item }: { item: any }) => (
+      <RetailerCard item={item} themeColor={primary} secondaryColor={secondary} />
+    ),
+    [primary, secondary],
+  );
+
+  const renderDealer = useCallback(
+    ({ item }: { item: any }) => (
+      <DealerCard item={item} themeColor={primary} secondaryColor={secondary} />
+    ),
+    [primary, secondary],
+  );
+
+  return (
+    <View style={styles.root}>
+
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={[primary, secondary]}
+        start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }}
+        style={styles.gradientHeader}
+      >
+        <AppBarSecond
+          title={translate(IsDealer ? "Fund Transfer Report" : "R To R History")}
+          titlestyle={styles.appBarTitle}
+        />
+        <DateRangePicker
+          onDateSelected={(from, to) => setSelectedDate({ from, to })}
+          SearchPress={(from, to, status) => fetchData(from, to, status)}
+          status={selectedStatus}
+          setStatus={setSelectedStatus}
+          isStShow={false}
+          isshowRetailer={IsDealer}
+          retailerID={(id: string) => {
+            setSelectedRetailerId(id);
+            fetchData(selectedDate.from, selectedDate.to, 'ALL', id);
+          }}
+          setSearchnumber={() => {}}
+          cmsStatu={false}
+          onlyFromDate={false}
+        />
+      </LinearGradient>
+
+      {/* Body */}
+      <View style={styles.body}>
+
+        {loading && <SkeletonList />}
+
+        {!loading && (!Array.isArray(transactions) || transactions.length === 0) && (
+          <View style={styles.emptyWrap}>
+            <NoDatafound />
+          </View>
+        )}
+
+        {!loading && Array.isArray(transactions) && transactions.length > 0 && (
+          <FlashList
+            data={transactions}
+            renderItem={IsDealer ? renderDealer : renderRetailer}
+            keyExtractor={(_, i) => i.toString()}
+            estimatedItemSize={160}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+
+      </View>
+    </View>
+  );
 };
 
-const styles = StyleSheet.create({
-    main: {
-        flex: 1,
-    },
-    container: {
-        flex: 1,
-        paddingVertical: hScale(15),
-        paddingHorizontal: hScale(10)
-    },
-
-    cardContainer: {
-        padding: wScale(10),
-        marginBottom: hScale(12),
-        borderRadius: 12,
-    },
-
-    cardTitle: {
-        fontSize: wScale(14),
-        color: '#333',
-    },
-
-    cardValue: {
-        fontSize: wScale(14),
-        fontWeight: 'bold',
-        color: '#0d47a1',
-    },
-    balanceRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        marginBottom: hScale(5),
-    },
-    balanceColumnLeft: {
-        alignItems: 'flex-start',
-        flex: 1,
-    },
-    balanceColumnCenter: {
-        alignItems: 'center',
-        flex: 1,
-    },
-    balanceColumnRight: {
-        alignItems: 'flex-end',
-        flex: 1,
-    },
-
-    /////////////////////////////
-
-    itemContainer: {
-        paddingHorizontal: wScale(5),
-        borderRadius: 5,
-        paddingVertical: hScale(5),
-        marginBottom: hScale(10)
-
-    },
-    timenumber: {
-        color: '#000',
-        fontSize: wScale(16),
-        fontWeight: 'bold'
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    row: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-
-    },
-    leftColumn: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-    },
-    rightColumn: {
-        flex: 1,
-        alignItems: 'flex-end',
-
-    },
-    column: {
-        alignItems: 'center',
-
-    },
-    border: {
-        height: '100%',
-        width: wScale(1),
-    },
-    border2: {
-        height: 1,
-        width: '100%',
-        marginVertical: hScale(2)
-    },
-    label: {
-        fontSize: wScale(11),
-        color: '#666666',
-    },
-    value: {
-        fontSize: wScale(14),
-        fontWeight: 'bold',
-        color: '#333333',
-    },
-    image: {
-        height: wScale(38),
-        width: wScale(40),
-        borderRadius: wScale(10),
-        marginRight:wScale(4)
-    },
-
-
-
-});
-
 export default RToRReport;
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  root: { flex: 1, backgroundColor: '#F2F2F7' },
+
+  gradientHeader: {
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8 },
+      android: { elevation: 6 },
+    }),
+  },
+  appBarTitle: { color: '#FFF', fontWeight: '700' },
+  body: { flex: 1 },
+
+  skeletonWrap: {
+    padding: wScale(14),
+    paddingBottom: hScale(32),
+  },
+  emptyWrap: {
+    flex: 1, alignItems: 'center', justifyContent: 'center', gap: hScale(10),
+  },
+  emptyText: { fontSize: wScale(14), color: '#8E8E93', fontWeight: '500' },
+  listContent: { padding: wScale(14), paddingBottom: hScale(32) },
+
+  // ── Card ─────────────────────────────────────────────────────────────────
+  card: {
+    borderRadius: wScale(18),
+    overflow: 'hidden',
+    marginBottom: hScale(12),
+    backgroundColor: '#FFF',
+    ...Platform.select({
+      ios: { shadowColor: '#000', shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.08, shadowRadius: 12 },
+      android: { elevation: 4 },
+    }),
+  },
+
+  // Gradient header
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: wScale(16),
+    paddingVertical: hScale(14),
+    gap: wScale(10),
+  },
+  cardShine: {
+    position: 'absolute',
+    top: 0, left: wScale(16), right: wScale(16),
+    height: hScale(1.2),
+    backgroundColor: 'rgba(255,255,255,0.3)',
+    borderBottomLeftRadius: 4, borderBottomRightRadius: 4,
+  },
+  avatar: {
+    width: wScale(40), height: wScale(40),
+    borderRadius: wScale(10),
+    borderWidth: 2, borderColor: 'rgba(255,255,255,0.4)',
+  },
+  headerLeft: { flex: 1, gap: hScale(4) },
+  headerName: { fontSize: wScale(15), fontWeight: '800', color: '#FFF', letterSpacing: 0.2 },
+  headerSub:  { fontSize: wScale(10), color: 'rgba(255,255,255,0.7)', fontWeight: '500' },
+  typeBadge: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    paddingHorizontal: wScale(8), paddingVertical: hScale(2),
+    borderRadius: wScale(6), alignSelf: 'flex-start',
+  },
+  typeBadgeText: { fontSize: wScale(10), color: '#FFF', fontWeight: '700' },
+  headerRight: { alignItems: 'flex-end', gap: hScale(2) },
+  headerAmountLabel: {
+    fontSize: wScale(9), color: 'rgba(255,255,255,0.75)',
+    fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.5,
+  },
+  headerAmount: { fontSize: wScale(20), fontWeight: '800', color: '#FFF', letterSpacing: -0.5 },
+
+  // Card body
+  cardBody: { padding: wScale(14), gap: hScale(8) },
+  metaRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  datePill: {
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: wScale(10), paddingVertical: hScale(4),
+    borderRadius: wScale(8),
+  },
+  dateText: { fontSize: wScale(11), color: '#6C6C70', fontWeight: '500' },
+  netBadge: {
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: wScale(10), paddingVertical: hScale(4),
+    borderRadius: wScale(8), gap: wScale(4),
+  },
+  netLabel: { fontSize: wScale(10), color: '#6C6C70', fontWeight: '600' },
+  netValue: { fontSize: wScale(12), fontWeight: '800' },
+
+  divider: { height: StyleSheet.hairlineWidth, backgroundColor: '#E5E5EA' },
+
+  // Stats row
+  statsRow: { flexDirection: 'row', alignItems: 'center', paddingTop: hScale(2) },
+  statCell: { flex: 1, gap: hScale(3) },
+  statLabel: {
+    fontSize: wScale(9), color: '#8E8E93', fontWeight: '600',
+    textTransform: 'uppercase', letterSpacing: 0.3, textAlign: 'center',
+  },
+  statValue: { fontSize: wScale(11), fontWeight: '700', color: '#1C1C1E', textAlign: 'center' },
+  statDivider: { width: StyleSheet.hairlineWidth, height: hScale(28), backgroundColor: '#E5E5EA' },
+});

@@ -1,398 +1,326 @@
-import { translate } from "../../utils/languageUtils/I18n";
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   Alert,
-  ActivityIndicator,
-  useColorScheme,
+  Platform,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
+import { useSelector } from 'react-redux';
+import LinearGradient from 'react-native-linear-gradient';
+
+import { translate } from '../../utils/languageUtils/I18n';
 import useAxiosHook from '../../utils/network/AxiosClient';
 import { APP_URLS } from '../../utils/network/urls';
 import AppBarSecond from '../drawer/headerAppbar/AppBarSecond';
-import { useSelector } from 'react-redux';
 import { RootState } from '../../reduxUtils/store';
 import { hScale, wScale } from '../../utils/styles/dimensions';
 import DateRangePicker from '../../components/DateRange';
 import NoDatafound from '../drawer/svgimgcomponents/Nodatafound';
-import { FlashList } from '@shopify/flash-list';  
+import SkeletonCard from '../../components/SkeletonCard';
+
+// ─── Ledger Card ──────────────────────────────────────────────────────────────
+
+const LedgerCard = React.memo(({ item }: { item: any }) => {
+  const isCredit    = item.debit === 0;
+  const accentColor = isCredit ? '#22C55E' : '#EF4444';
+  const amountBg    = isCredit ? '#DCFCE7' : '#FEE2E2';
+  const amountColor = isCredit ? '#15803D' : '#B91C1C';
+
+  return (
+    <View style={styles.card}>
+      <View style={[styles.cardAccent, { backgroundColor: accentColor }]} />
+      <View style={styles.cardBody}>
+
+        <View style={styles.topRow}>
+          <View style={styles.datePill}>
+            <Text style={styles.dateText}>{item.Date}</Text>
+          </View>
+          <View style={[styles.amountBadge, { backgroundColor: amountBg }]}>
+            <Text style={[styles.amountText, { color: amountColor }]}>
+              {isCredit ? '+' : '-'} ₹{item.Amount}
+            </Text>
+          </View>
+        </View>
+
+        <Text style={styles.descText} numberOfLines={2}>{item.Particulars}</Text>
+
+        <View style={styles.divider} />
+
+        <View style={styles.footerRow}>
+          <View style={styles.footerLeft}>
+            <Text style={styles.footerLabel}>
+              {isCredit ? translate("Credit") : translate("Debit")}
+            </Text>
+            <Text style={[styles.footerValue, { color: amountColor }]}>
+              ₹{isCredit ? item.credit : item.debit}
+            </Text>
+          </View>
+          <View style={styles.footerRight}>
+            <Text style={styles.footerLabel}>{translate("Post Balance")}</Text>
+            <Text style={styles.postBalText}>₹{item.Balance}</Text>
+          </View>
+        </View>
+
+      </View>
+    </View>
+  );
+});
+
+// ─── Skeleton List ────────────────────────────────────────────────────────────
+// Top-aligned — centerWrap ke bahar, padding same as list
+
+const SkeletonList = () => (
+  <View style={styles.skeletonWrap}>
+    {[...Array(6)].map((_, i) => (
+      <SkeletonCard key={i} />
+    ))}
+  </View>
+);
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 const DayLedgerReport = () => {
-  const { colorConfig ,IsDealer} = useSelector((state: RootState) => state.userInfo);
-  const color1 = `${colorConfig.secondaryColor}20`
-  const [inforeport, setInforeport] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const { colorConfig, IsDealer } = useSelector((state: RootState) => state.userInfo);
+  const primary:   string = colorConfig?.primaryColor   || '#0A84FF';
+  const secondary: string = colorConfig?.secondaryColor || '#0055FF';
+
   const { get } = useAxiosHook();
-  const colorScheme = useColorScheme();
-  const [selectedDate, setSelectedDate] = useState({
+  const [inforeport,     setInforeport]     = useState<any[]>([]);
+  const [loading,        setLoading]        = useState(false);
+  const [selectedDate,   setSelectedDate]   = useState({
     from: new Date().toISOString().split('T')[0],
-    to: new Date().toISOString().split('T')[0],
+    to:   new Date().toISOString().split('T')[0],
   });
   const [selectedStatus, setSelectedStatus] = useState('ALL');
 
-  const retailerLedgerReport = async (from, to, status) => {
+  const fetchLedger = useCallback(async (from: string, to: string, status: string) => {
     setLoading(true);
-
     try {
       const formattedFrom = new Date(from).toISOString().split('T')[0];
-      const formattedTo = new Date(to).toISOString().split('T')[0];
+      const formattedTo   = new Date(to).toISOString().split('T')[0];
+      const url = IsDealer
+        ? `${APP_URLS.DealerLedger}${formattedFrom}`
+        : `${APP_URLS.dayLedger}from=${formattedFrom}&to=${formattedTo}`;
 
-    const url = `${APP_URLS.DealerLedger}${formattedFrom}`
-      const response = await get({ url: IsDealer?url: `${APP_URLS.dayLedger}from=${formattedFrom}&to=${formattedTo}` });
-      if (!response) {
-        throw new Error('Network response was not ok');
-      }
-      setInforeport(IsDealer ?response.Report :response);
-      console.log(response, 'resssss');
-    } catch (error) {
-      console.error('Error fetching data:', error);
+      const response = await get({ url });
+      if (!response) throw new Error('No response');
+      setInforeport(IsDealer ? response.Report : response);
+    } catch (e) {
+      console.error('DayLedgerReport fetch error:', e);
       Alert.alert('Error', 'Failed to load data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [IsDealer]);
 
   useEffect(() => {
-    retailerLedgerReport(selectedDate.from, selectedDate.to, selectedStatus);
-  }, [selectedDate, selectedStatus]); 
+    fetchLedger(selectedDate.from, selectedDate.to, selectedStatus);
+  }, [selectedDate, selectedStatus]);
 
-  const isDarkMode = colorScheme === 'dark';
-  const styles = getStyles(isDarkMode);
-
-  const keyExtractor = (item, index) => index.toString();  
-
-  // const renderItem = ({ item, index }) => (
-  //   <View style={[styles.transactionContainer, { backgroundColor: color1 }]}>
-  //     <View key={index} style={styles.transactionrow}>
-  //       <View>
-  //         <Text style={styles.timetext}>{translate("Transaction_Time")}</Text>
-  //         <Text style={styles.timenumber}>{item.Date}</Text>
-  //       </View>
-
-  //       <View style={styles.postview}>
-  //         <Text style={styles.timetext}>{translate("Amount")}</Text>
-  //         <Text style={styles.timenumber}>₹ {item.Amount}</Text>
-  //       </View>
-  //     </View>
-
-  //     <View style={styles.descriptionview}>
-  //       <Text style={styles.transactionText}>{translate("Description")}</Text>
-  //       <Text style={[styles.transactionText, { color: colorConfig.secondaryColor, paddingLeft: wScale(10) }]}>{item.Particulars}</Text>
-  //     </View>
-
-  //     <View style={styles.transactionrow}>
-  //       <Text style={styles.transactionText}>
-  //         {item.debit === 0.0 && item.credit === 0.0
-  //           ? null
-  //           : item.debit === 0.0
-  //             ? 'Credit Balance: ₹ ' + item.credit
-  //             : 'Debit Balance: ₹ ' + item.debit}
-  //       </Text>
-
-  //       <View style={styles.postview}>
-  //         <Text style={styles.timetext}>{translate("Post_Balance")}</Text>
-  //         <Text style={styles.timenumber}>₹ {item.Balance}</Text>
-  //       </View>
-
-  //     </View>
-  //   </View>
-  // );
-const renderItem = ({ item }) => {
-  const isCredit = item.debit === 0;
-
-  return (
-    <View style={[styles.card , { backgroundColor: '#fff'},
-]}>
-      
-      {/* ===== HEADER ===== */}
-      <View style={styles.headerRow}>
-        <View>
-          <Text style={styles.dateText}>{item.Date}</Text>
-          <Text style={styles.descText} numberOfLines={2}>
-            {item.Particulars}
-          </Text>
-        </View>
-
-        <Text
-          style={[
-            styles.amountText,
-            { color: isCredit ? '#2ecc71' : '#e74c3c' },
-          ]}
-        >
-          {isCredit ? '+' : '-'} ₹ {item.Amount}
-        </Text>
-      </View>
-
-      {/* ===== DIVIDER ===== */}
-      <View style={styles.divider} />
-
-      {/* ===== FOOTER ===== */}
-      <View style={styles.footerRow}>
-        <View>
-          <Text style={styles.balanceLabel}>
-            {isCredit ? 'Credit' : 'Debit'}
-          </Text>
-          <Text
-            style={[
-              styles.balanceValue,
-              { color: isCredit ? '#2ecc71' : '#e74c3c' },
-            ]}
-          >
-            ₹ {isCredit ? item.credit : item.debit}
-          </Text>
-        </View>
-
-        <View style={{ alignItems: 'flex-end' }}>
-          <Text style={styles.balanceLabel}>{translate("Post_Balance")}</Text>
-          <Text style={styles.postBalance}>₹ {item.Balance}</Text>
-        </View>
-      </View>
-
-    </View>
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => <LedgerCard item={item} />,
+    [],
   );
-};
-
 
   return (
-    <View style={styles.main}>
-      <AppBarSecond title={'Ledger Report'} />
+    <View style={styles.root}>
 
-      <DateRangePicker
+      {/* Gradient Header */}
+      <LinearGradient
+        colors={[primary, secondary]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={styles.gradientHeader}
+      >
+        <AppBarSecond
+          title={translate("Ledger Report")}
+          titlestyle={styles.appBarTitle}
+        />
+        <DateRangePicker
+          onDateSelected={(from, to) => setSelectedDate({ from, to })}
+          SearchPress={(from, to, status) => fetchLedger(from, to, status)}
+          status={selectedStatus}
+          setStatus={setSelectedStatus}
+          isStShow={false}
+          isshowRetailer={false}
+          retailerID={() => {}}
+          setSearchnumber={() => {}}
+          cmsStatu={false}
+          onlyFromDate={false}
+        />
+      </LinearGradient>
 
-        onDateSelected={(from, to) => setSelectedDate({ from, to })}
-        SearchPress={(from, to, status) => retailerLedgerReport(from, to, status)}
-        status={selectedStatus}
-        setStatus={setSelectedStatus}
-        isStShow={false}
-        isshowRetailer={false}
-      />
+      {/* Body — teen alag states, ek saath nahi dikhenge */}
+      <View style={styles.body}>
 
-      <View style={styles.container}>
+        {loading && <SkeletonList />}
 
-        {loading ?
-          <ActivityIndicator size="large" color={colorConfig.secondaryColor} />
-          :
-          inforeport.length === 0 ? (
+        {!loading && inforeport.length === 0 && (
+          <View style={styles.emptyWrap}>
             <NoDatafound />
-          ) :
-            <FlashList
-              data={inforeport}
-              renderItem={renderItem}
-              keyExtractor={keyExtractor}
-              estimatedItemSize={200}
-            />
+            <Text style={styles.emptyText}>{translate("No data found")}</Text>
+          </View>
+        )}
 
-        }
+        {!loading && inforeport.length > 0 && (
+          <FlashList
+            data={inforeport}
+            renderItem={renderItem}
+            keyExtractor={(_, i) => i.toString()}
+            estimatedItemSize={120}
+            contentContainerStyle={styles.listContent}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+
       </View>
     </View>
   );
 };
-
-const getStyles = (isDarkMode) => StyleSheet.create({
-  main: { flex: 1 },
-cardWrapper: {
-  marginBottom: hScale(12),
-  marginHorizontal: wScale(5),
-  shadowColor: '#000',
-  shadowOpacity: 0.08,
-  shadowRadius: 2,
-  elevation: 2,
-},
-
-cardInner: {
-  backgroundColor: '#FFFFFFAA', // flutter opacity white
-  borderRadius: 5,
-  padding: wScale(10),
-},
-
-topRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-},
-
-bottomRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  marginTop: hScale(5),
-},
-
-label: {
-  fontSize: wScale(12),
-  color: '#555',
-},
-
-value: {
-  fontSize: wScale(14),
-  fontWeight: 'bold',
-  color: '#000',
-},
-
-// divider: {
-//   height: 1,
-//   backgroundColor: '#ddd',
-//   marginVertical: hScale(6),
-// },
-
-descRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-},
-
-descLabel: {
-  fontSize: wScale(14),
-  color: '#000',
-},
-
-descValue: {
-  fontSize: wScale(14),
-  textAlign: 'right',
-  flex: 1,
-  paddingLeft: wScale(8),
-},
-  container: {
-    flex: 1,
-    padding: wScale(10),
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    padding: wScale(10),
-    borderRadius: 5,
-  },
-  datePickerButton: {
-    paddingHorizontal: wScale(10),
-    borderRadius: 5,
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: wScale(1),
-    borderColor: '#fff',
-  },
-  searchButton: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingHorizontal: wScale(15),
-    backgroundColor: '#007bff',
-    borderRadius: 5,
-    borderWidth: wScale(1),
-    borderColor: '#fff',
-  },
-  buttonText: {
-    color: '#fff',
-    fontSize: wScale(14),
-  },
-  dateText: {
-    color: '#fff',
-    fontSize: wScale(14),
-  },
-  timetext: {
-    color: '#000',
-    fontSize: wScale(14),
-  },
-  timenumber: {
-    color: '#000',
-    fontSize: wScale(16),
-    fontWeight: 'bold'
-  },
-  loaderContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  loadingText: {
-    textAlign: 'center',
-    fontSize: wScale(18),
-    color: isDarkMode ? '#cccccc' : '#777777',
-    marginTop: hScale(20),
-  },
-  transactionContainer: {
-    paddingHorizontal: wScale(10),
-    paddingVertical: hScale(5),
-    borderRadius: 5,
-    marginBottom: hScale(15),
-  },
-  transactionText: {
-    fontSize: wScale(16),
-    color: '#000',
-  },
-  transactionrow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between'
-  },
-  descriptionview: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderTopWidth: wScale(1),
-    borderBottomWidth: wScale(1),
-    alignItems: 'center',
-    paddingVertical: hScale(3)
-  },
-  postview: {
-    alignItems: 'flex-end'
-  },
-  card: {
-  // backgroundColor: '#fff',
-  borderRadius: 14,
-  padding: wScale(14),
-  marginBottom: hScale(12),
-  shadowColor: '#000',
-  shadowOpacity: 0.06,
-  shadowRadius: 6,
-  elevation: 3,
-},
-
-headerRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-  alignItems: 'flex-start',
-},
-
-dateText: {
-  fontSize: wScale(12),
-  color: '#7f8c8d',
-},
-
-descText: {
-  fontSize: wScale(14),
-  fontWeight: '600',
-  color: '#2c3e50',
-  marginTop: hScale(4),
-  maxWidth: wScale(220),
-},
-
-amountText: {
-  fontSize: wScale(16),
-  fontWeight: '700',
-},
-
-divider: {
-  height: 1,
-  backgroundColor: '#eee',
-  marginVertical: hScale(10),
-},
-
-footerRow: {
-  flexDirection: 'row',
-  justifyContent: 'space-between',
-},
-
-balanceLabel: {
-  fontSize: wScale(12),
-  color: '#95a5a6',
-},
-
-balanceValue: {
-  fontSize: wScale(14),
-  fontWeight: '600',
-  marginTop: hScale(2),
-},
-
-postBalance: {
-  fontSize: wScale(15),
-  fontWeight: '700',
-  color: '#34495e',
-},
-
-});
 
 export default DayLedgerReport;
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
+const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+    backgroundColor: '#F2F2F7',
+  },
+  gradientHeader: {
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.12,
+        shadowRadius: 8,
+      },
+      android: { elevation: 6 },
+    }),
+  },
+  appBarTitle: {
+    color: '#FFF',
+    fontWeight: '700',
+  },
+  body: {
+    flex: 1,
+  },
+
+  // ── Skeleton: top-aligned, same padding as list ───────────────────────────
+  skeletonWrap: {
+    padding: wScale(14),
+    paddingBottom: hScale(32),
+  },
+
+  // ── Empty: vertically centered ────────────────────────────────────────────
+  emptyWrap: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: hScale(10),
+  },
+  emptyText: {
+    fontSize: wScale(14),
+    color: '#8E8E93',
+    fontWeight: '500',
+  },
+
+  listContent: {
+    padding: wScale(14),
+    paddingBottom: hScale(32),
+  },
+
+  // ── Card ──────────────────────────────────────────────────────────────────
+  card: {
+    backgroundColor: '#FFF',
+    borderRadius: wScale(16),
+    flexDirection: 'row',
+    overflow: 'hidden',
+    marginBottom: hScale(10),
+    ...Platform.select({
+      ios: {
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.06,
+        shadowRadius: 8,
+      },
+      android: { elevation: 2 },
+    }),
+  },
+  cardAccent: {
+    width: wScale(4),
+  },
+  cardBody: {
+    flex: 1,
+    padding: wScale(14),
+    gap: hScale(6),
+  },
+  topRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  datePill: {
+    backgroundColor: '#F2F2F7',
+    paddingHorizontal: wScale(8),
+    paddingVertical: hScale(3),
+    borderRadius: wScale(6),
+  },
+  dateText: {
+    fontSize: wScale(11),
+    color: '#6C6C70',
+    fontWeight: '500',
+  },
+  amountBadge: {
+    paddingHorizontal: wScale(10),
+    paddingVertical: hScale(4),
+    borderRadius: wScale(20),
+  },
+  amountText: {
+    fontSize: wScale(13),
+    fontWeight: '800',
+    letterSpacing: 0.2,
+  },
+  descText: {
+    fontSize: wScale(13),
+    fontWeight: '600',
+    color: '#1C1C1E',
+    lineHeight: hScale(18),
+  },
+  divider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: '#E5E5EA',
+    marginVertical: hScale(2),
+  },
+  footerRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-end',
+  },
+  footerLeft: {
+    gap: hScale(2),
+  },
+  footerRight: {
+    alignItems: 'flex-end',
+    gap: hScale(2),
+  },
+  footerLabel: {
+    fontSize: wScale(10),
+    color: '#8E8E93',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.4,
+  },
+  footerValue: {
+    fontSize: wScale(13),
+    fontWeight: '700',
+  },
+  postBalText: {
+    fontSize: wScale(14),
+    fontWeight: '800',
+    color: '#1C1C1E',
+    letterSpacing: -0.2,
+  },
+});

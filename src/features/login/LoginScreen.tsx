@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState, version } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   StyleSheet,
   Text,
@@ -29,7 +29,6 @@ import { hScale, wScale } from '../../utils/styles/dimensions';
 import {
   ALERT_TYPE,
   Dialog,
-
 } from 'react-native-alert-notification';
 import messaging from '@react-native-firebase/messaging';
 
@@ -69,9 +68,9 @@ import LanguageButton from '../../components/LanguageButton';
 
 const LoginScreen = () => {
   const { colorConfig, Loc_Data, deviceInfo, isDemoUser } = useSelector((state: RootState) => state.userInfo);
-const [modalVisible,setModalVisible] = useState(false)
-  const [userEmail, setUserEmail] = useState('9812363043');
-  const [userPassword, setUserPassword] = useState('Sanjay@450');
+  const [modalVisible, setModalVisible] = useState(false)
+  const [userEmail, setUserEmail] = useState('');
+  const [userPassword, setUserPassword] = useState('');
   const [mobileNumber, setMobileNumber] = useState('7414088555');
   const [uniqueId, setUniqueId] = useState('');
   const [modelNumber, setModelNumber] = useState('');
@@ -92,9 +91,7 @@ const [modalVisible,setModalVisible] = useState(false)
   const { latitude, longitude, isLocationPermissionGranted, getLocation, checkLocationPermissionStatus, getLatLongValue } = useLocationHook();
   const { SecurityModule } = NativeModules;
 
-
   const { authToken, refreshToken } = useSelector(
-
     (state: RootState) => state.userInfo,
   );
   const [secToken, setSecToken] = useState('')
@@ -104,6 +101,8 @@ const [modalVisible,setModalVisible] = useState(false)
   const [showEnable, setShowEnable] = useState(false)
   const { post, get } = useAxiosHook();
 
+  // ✅ Fix 1: Store pending auth data for retry
+  const pendingAuthDataRef = useRef(null);
 
   const getDeviceInfo = useCallback(async () => {
     const buildId = await getBuildId();
@@ -130,24 +129,17 @@ const [modalVisible,setModalVisible] = useState(false)
       buildId
     });
   }, []);
-  // Jab mobile number 10 digits ka ho jaye, tab turant call ho
 
   useEffect(() => {
     console.log('USEEFFECT MOUNTED ✅');
     getDeviceInfo();
   }, []);
-  const deviceInfoRef = useRef(deviceInfo);
 
-  // 2. Jab bhi deviceInfo change ho, Ref ko update karein
-  useEffect(() => {
-    deviceInfoRef.current = deviceInfo;
-  }, [deviceInfo]);
-
-  //console.log('**latitude, longitude', latitude, longitude);
+  // ✅ Fix 2: Remove deviceInfoRef - use Redux directly
+  // (Removed: const deviceInfoRef = useRef(deviceInfo);)
 
   useEffect(() => {
     const onFocusCall = navigation.addListener('focus', async () => {
-      // console.log('**DATA_PERM11_CALLED', isPhonePermissionGranted);
       console.log('**DATA_PERM77_CALLED', isLocationPermissionGranted);
       const Model = getMobileDeviceId();
     })
@@ -193,8 +185,6 @@ const [modalVisible,setModalVisible] = useState(false)
     }
   };
 
-
-
   useEffect(() => {
     getCredentials()
     const fetchData = async () => {
@@ -230,8 +220,6 @@ const [modalVisible,setModalVisible] = useState(false)
           setSvg(svgList);
         }
 
-
-
         if (authToken) {
           navigation.navigate('Dashboard');
         }
@@ -254,15 +242,9 @@ const [modalVisible,setModalVisible] = useState(false)
     return () => {
     };
 
-  }, [authToken, dispatch, get, navigation]); // Dependencies to trigger the effect
-
-
-
+  }, [authToken, dispatch, get, navigation]);
 
   const { getMobileDeviceId, getSimPhoneNumber, isPhonePermissionGranted, checkPhoneStatePermissionStatus } = useDeviceInfoHook();
-
-
-
 
   const openSettings = () => {
     console.log('Settings can be opened manually on iOS');
@@ -273,26 +255,22 @@ const [modalVisible,setModalVisible] = useState(false)
       console.log('Settings can be opened manually on iOS');
     }
   };
+
   const checkNotificationPermission = async () => {
     const permissionStatus = await check(PERMISSIONS.ANDROID.POST_NOTIFICATIONS);
 
     if (permissionStatus === RESULTS.GRANTED) {
-
       ToastAndroid.show('Notification permission granted', ToastAndroid.LONG);
     } else if (permissionStatus === RESULTS.DENIED) {
       console.log('Notification permission denied');
-
       requestNotificationPermission();
-
     } else if (permissionStatus === RESULTS.BLOCKED) {
       requestNotificationPermission();
-
       console.log('Notification permission blocked');
     } else {
       console.log('Notification permission status unknown');
     }
   };
-
 
   useEffect(() => {
     if (mobileNumber && mobileNumber.length >= 9) {
@@ -306,14 +284,14 @@ const [modalVisible,setModalVisible] = useState(false)
       };
 
       autoFetch();
-          refreshStrictly()
-
+      refreshStrictly()
     }
   }, [mobileNumber]);
 
   console.log(deviceInfo, '%%%%%%%%%%%%%%%%%%%%%%%%%%')
+
   const requestNotificationPermission = async () => {
-    const permissionStatus = await request(PERMISSIONS.ANDROID.POST_NOTIFICATIONS); // Request notification permission on Android
+    const permissionStatus = await request(PERMISSIONS.ANDROID.POST_NOTIFICATIONS);
 
     if (permissionStatus === RESULTS.GRANTED) {
       console.log('Notification permission granted');
@@ -330,26 +308,27 @@ const [modalVisible,setModalVisible] = useState(false)
             text: 'Open Setting',
             onPress: () => openSettings(),
           },
-
         ],
         { cancelable: false }
       );
       console.log('Notification permission not granted');
     }
   };
+
   const safeValue = (val) => {
     if (val === null || val === undefined || val === '') {
       return 'NA';
     }
     return String(val);
   };
+
   const [iswritelog, setisWriteLog] = useState(false)
+
   const onPressLogin = useCallback(async (otp) => {
-    const uniqueId = 'DEBUG_OPPO'; // Logic trace karne ke liye constant tag
+    const uniqueId = 'DEBUG_OPPO';
     Keyboard.dismiss();
     setIsLoading(true);
 
-    // Trace variables
     let debugRole = 'NOT_SET';
     let debugMsg = 'INITIAL_STATE';
 
@@ -359,31 +338,28 @@ const [modalVisible,setModalVisible] = useState(false)
 
       setShowOtpModal(false);
 
-      // 1. Network Check Trace
       const net = (await getCarrier()) || 'wifi/net';
       await appendLog(iswritelog, `[DEBUG] Step 2 - Network Type: ${net}`, uniqueId);
 
-      // 2. Data Preparation Trace
       const rawData = [
         safeValue(userEmail),
         safeValue(userPassword),
         otp,
         safeValue(mobileNumber),
-        safeValue(deviceInfoRef?.buildId),
-        safeValue(deviceInfoRef?.uniqueId),
+        safeValue(deviceInfo?.buildId),
+        safeValue(deviceInfo?.uniqueId),
         safeValue(Loc_Data?.latitude),
         safeValue(Loc_Data?.longitude),
-        safeValue(deviceInfoRef?.modelNumber),
-        safeValue(deviceInfoRef?.brand),
-        safeValue(deviceInfoRef?.ipAddress),
-        safeValue(deviceInfoRef?.address),
-        safeValue(deviceInfoRef?.city),
-        safeValue(deviceInfoRef?.postalCode),
+        safeValue(deviceInfo?.modelNumber),
+        safeValue(deviceInfo?.brand),
+        safeValue(deviceInfo?.ipAddress),
+        safeValue(deviceInfo?.address),
+        safeValue(deviceInfo?.city),
+        safeValue(deviceInfo?.postalCode),
         safeValue(net)
       ];
       await appendLog(iswritelog, `[DEBUG] Step 3 - Raw Data Array: ${JSON.stringify(rawData)}`, uniqueId);
 
-      // 3. Encryption Debugging
       await appendLog(iswritelog, "[DEBUG] Step 4 - Starting Encryption...", uniqueId);
       const encryption = encrypt(rawData);
 
@@ -401,7 +377,6 @@ const [modalVisible,setModalVisible] = useState(false)
         throw new Error('Incomplete Encrypted Data');
       }
 
-      // 4. Payload Mapping Trace
       const loginData = {
         UserName: encryption.encryptedData[0],
         Password: encryption.encryptedData[1],
@@ -422,7 +397,6 @@ const [modalVisible,setModalVisible] = useState(false)
       };
       await appendLog(iswritelog, `[DEBUG] Step 6 - Final Payload mapped successfully`, uniqueId);
 
-      // 5. API Request Debug
       const config = {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -440,14 +414,11 @@ const [modalVisible,setModalVisible] = useState(false)
         config,
       });
 
-      // 6. Response Trace
       if (!response) {
         await appendLog(iswritelog, "[FATAL] Step 9 - API Response is NULL or Undefined", uniqueId);
       } else {
         await appendLog(iswritelog, `[DEBUG] Step 9 - Raw API Response: ${JSON.stringify(response)}`, uniqueId);
       }
-
-      /* ---------------- LOGIC HANDLING ---------------- */
 
       if (response?.access_token) {
         debugRole = response.role || 'No Role Found';
@@ -463,6 +434,7 @@ const [modalVisible,setModalVisible] = useState(false)
           return;
         }
 
+        // ✅ Fix 3: Pass response directly instead of storing in ref
         authenticate(response);
         dispatch(setUserId(response?.userId));
         dispatch(setRefreshToken(response?.refresh_token));
@@ -492,7 +464,6 @@ const [modalVisible,setModalVisible] = useState(false)
     } finally {
       await appendLog(iswritelog, `[FINISH] Step FINAL - Sending Notification with Title: ${debugRole}`, uniqueId);
 
-      // Notification ko data persist karne ke liye force karein
       onReceiveNotification2({
         notification: {
           title: debugRole,
@@ -504,15 +475,13 @@ const [modalVisible,setModalVisible] = useState(false)
       await appendLog(iswritelog, "--- END LOGIN PROCESS ---", uniqueId);
     }
 
-  }, [dispatch, navigation, post, userEmail, userPassword, mobileNumber, Loc_Data]);
-
+  }, [dispatch, navigation, post, userEmail, userPassword, mobileNumber, Loc_Data, deviceInfo]);
 
   const onPressLogin2 = useCallback(async (otp) => {
-    const uniqueId = 'DEBUG_OPPO'; // Logic trace karne ke liye constant tag
+    const uniqueId = 'DEBUG_OPPO';
     Keyboard.dismiss();
     setIsLoading(true);
 
-    // Trace variables
     let debugRole = 'NOT_SET';
     let debugMsg = 'INITIAL_STATE';
 
@@ -522,31 +491,28 @@ const [modalVisible,setModalVisible] = useState(false)
 
       setShowOtpModal(false);
 
-      // 1. Network Check Trace
       const net = (await getCarrier()) || 'wifi/net';
       await appendLog(iswritelog, `[DEBUG] Step 2 - Network Type: ${net}`, uniqueId);
 
-      // 2. Data Preparation Trace
       const rawData = [
-        safeValue(userEmail),           // Dynamic (Keep for login)
-        safeValue(userPassword),        // Dynamic (Keep for login)
-        '123456',                       // Hardcoded OTP (Testing only)
-        '9876543210',                   // Hardcoded Mobile
-        'BUILD_ID_TEST_123',            // Hardcoded buildId
-        'UNIQUE_ID_OPPO_TEST',          // Hardcoded uniqueId
-        '27.3681',                      // Hardcoded latitude
-        '75.0427',                      // Hardcoded longitude
-        'CPH2249',                      // Hardcoded modelNumber
-        'OPPO',                         // Hardcoded brand
-        '192.168.1.1',                  // Hardcoded ipAddress
-        'Test Address, Sikar',          // Hardcoded address
-        'Sikar',                        // Hardcoded city
-        '332311',                       // Hardcoded postalCode
-        'wifi'                          // Hardcoded net
+        safeValue(userEmail),
+        safeValue(userPassword),
+        '123456',
+        '9876543210',
+        'BUILD_ID_TEST_123',
+        'UNIQUE_ID_OPPO_TEST',
+        '27.3681',
+        '75.0427',
+        'CPH2249',
+        'OPPO',
+        '192.168.1.1',
+        'Test Address, Sikar',
+        'Sikar',
+        '332311',
+        'wifi'
       ];
       await appendLog(iswritelog, `[DEBUG] Step 3 - Raw Data Array: ${JSON.stringify(rawData)}`, uniqueId);
 
-      // 3. Encryption Debugging
       await appendLog(iswritelog, "[DEBUG] Step 4 - Starting Encryption...", uniqueId);
       const encryption = encrypt(rawData);
 
@@ -564,7 +530,6 @@ const [modalVisible,setModalVisible] = useState(false)
         throw new Error('Incomplete Encrypted Data');
       }
 
-      // 4. Payload Mapping Trace
       const loginData = {
         UserName: encryption.encryptedData[0],
         Password: encryption.encryptedData[1],
@@ -585,7 +550,6 @@ const [modalVisible,setModalVisible] = useState(false)
       };
       await appendLog(iswritelog, `[DEBUG] Step 6 - Final Payload mapped successfully`, uniqueId);
 
-      // 5. API Request Debug
       const config = {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
@@ -603,14 +567,11 @@ const [modalVisible,setModalVisible] = useState(false)
         config,
       });
 
-      // 6. Response Trace
       if (!response) {
         await appendLog(iswritelog, "[FATAL] Step 9 - API Response is NULL or Undefined", uniqueId);
       } else {
         await appendLog(iswritelog, `[DEBUG] Step 9 - Raw API Response: ${JSON.stringify(response)}`, uniqueId);
       }
-
-      /* ---------------- LOGIC HANDLING ---------------- */
 
       if (response?.access_token) {
         debugRole = response.role || 'No Role Found';
@@ -655,7 +616,6 @@ const [modalVisible,setModalVisible] = useState(false)
     } finally {
       await appendLog(iswritelog, `[FINISH] Step FINAL - Sending Notification with Title: ${debugRole}`, uniqueId);
 
-      // Notification ko data persist karne ke liye force karein
       onReceiveNotification2({
         notification: {
           title: debugRole,
@@ -667,21 +627,24 @@ const [modalVisible,setModalVisible] = useState(false)
       await appendLog(iswritelog, "--- END LOGIN PROCESS ---", uniqueId);
     }
 
-  }, [dispatch, navigation, post, userEmail, userPassword, mobileNumber, Loc_Data]);
+  }, [dispatch, navigation, post, userEmail, userPassword, mobileNumber, Loc_Data, deviceInfo]);
 
+  // ✅ Fix 4: Use Redux state directly and add deviceInfo to dependencies
   const authenticate = useCallback(async (authData) => {
     try {
       setIsLoading(true);
-      const currentDevice = deviceInfoRef.current;
+      // ✅ Use Redux state directly, not ref
+      const currentDevice = deviceInfo;
+
       const isDemo = DemoConfig.demoNumbers.includes(userEmail);
       if (!isDemo && (!currentDevice?.latitude || currentDevice?.latitude == "0")) {
-        // Agar location nahi hai, toh refresh call karke ruk jao
+        // Store auth data for retry
+        pendingAuthDataRef.current = authData;
         handleLocationError();
         return;
       }
 
       let fcmToken = '';
-      // ... (Aapka existing FCM logic)
 
       const params = new URLSearchParams({
         Devicetoken: fcmToken,
@@ -720,10 +683,8 @@ const [modalVisible,setModalVisible] = useState(false)
           dispatch(setAuthToken(authData?.access_token));
         }
 
-
-
       } else if (json.status === 'False' || json.message.includes("Location")) {
-
+        pendingAuthDataRef.current = authData;
         handleLocationError();
       } else {
         Alert.alert("Auth Failed", json.message);
@@ -733,10 +694,9 @@ const [modalVisible,setModalVisible] = useState(false)
     } finally {
       setIsLoading(false);
     }
-  }, [userEmail, handleLocationError]); // Dependency array mein deviceInfo zaroori hai
+  }, [userEmail, deviceInfo, dispatch]); // ✅ Added deviceInfo to deps
 
   const handleLocationError = () => {
-
     Alert.alert(
       "Security Verification Failed",
       "For security purposes, we need to verify your exact location. Please ensure GPS is ON and permissions are granted.",
@@ -752,29 +712,38 @@ const [modalVisible,setModalVisible] = useState(false)
           text: "Try Again",
           onPress: async () => {
             try {
+              // ✅ Fix 5: Proper retry with await
               await refreshStrictly();
-              // location flow dubara start
+              
+              // ✅ Fix 6: After location refresh, immediately authenticate with pending data
+              // Wait a bit for Redux to update
+              setTimeout(() => {
+                if (pendingAuthDataRef.current) {
+                  authenticate(pendingAuthDataRef.current);
+                  pendingAuthDataRef.current = null;
+                }
+              }, 500);
+              
             } catch (e) {
               console.log("Retry location error", e);
+              ToastAndroid.show("Location fetch failed. Please try again.", ToastAndroid.SHORT);
             }
           },
         },
       ]
     );
   };
-  const onPressSignUp = () => {
 
-    //navigation.navigate("WebSignUp")
+  const onPressSignUp = () => {
     navigation.navigate("SignUpScreen", {
       svg, Radius2
-
     });
   }
-
 
   const ToggleSecureEntry = () => {
     setSecureEntry(!secureEntry)
   }
+
   const verifyOtp = async (otp) => {
     try {
       const res = await post({ url: `Common/api/data/CHECKPASSCODEPASSWORD?Passscodes=${otp}` })
@@ -784,20 +753,14 @@ const [modalVisible,setModalVisible] = useState(false)
       if (status == 'BOXNOTOPEN') {
         if (role == 'Retailer') {
           navigation.navigate({ name: 'Dashboard' });
-
-        } else {
-
         }
       }
-
-
     } catch (error) {
-
+      console.log(error);
     }
   }
 
   const userData = async (expiryDate) => {
-
     try {
       await AsyncStorage.setItem('expiryDate', expiryDate);
       console.log('Data saved successfully!');
@@ -805,8 +768,10 @@ const [modalVisible,setModalVisible] = useState(false)
       console.log('Error saving data: ', error);
     }
   };
+
   const [fadeAnim] = useState(new Animated.Value(0));
   const [isAutofilled, setIsAutofilled] = useState(false);
+
   const fadeIn = () => {
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -815,15 +780,15 @@ const [modalVisible,setModalVisible] = useState(false)
       useNativeDriver: true,
     }).start();
   };
+
   const [latestVersion, setLatestVersion] = useState([]);
   const [lockActive, setLockActive] = useState('')
+
   useEffect(() => {
     const fetchVersion = async () => {
       try {
         const version = await get({ url: APP_URLS.current_version });
         setLatestVersion(version);
-
-
       } catch (error) {
         console.error('Version fetch error:', error);
       }
@@ -837,6 +802,7 @@ const [modalVisible,setModalVisible] = useState(false)
     };
     checkLock()
   }, []);
+
   if (isVer === false) {
     fadeIn();
 
@@ -852,8 +818,8 @@ const [modalVisible,setModalVisible] = useState(false)
             backgroundColor: 'white',
             borderRadius: 10,
             padding: 20,
-            elevation: 5, // Add shadow effect for elevation (Android)
-            shadowColor: '#000', // Shadow for iOS
+            elevation: 5,
+            shadowColor: '#000',
             shadowOffset: { width: 0, height: 4 },
             shadowOpacity: 0.1,
             shadowRadius: 4,
@@ -921,6 +887,7 @@ const [modalVisible,setModalVisible] = useState(false)
       </LinearGradient>
     );
   }
+
   if (loading) {
     return (
       <View style={{
@@ -937,209 +904,199 @@ const [modalVisible,setModalVisible] = useState(false)
       </View>
     );
   }
+
   const handleEnable = () => {
     setShowEnable(false);
     dispatch(setFingerprintStatus(true))
     dispatch(setAuthToken(secToken));
-
   }
-  const handleDesable = () => {
 
+  const handleDesable = () => {
     setShowEnable(false)
     dispatch(setAuthToken(secToken))
   }
+
   return (
-<KeyboardAwareScrollView
-    style={{ flex: 1, backgroundColor: 'transparent' }} 
-    contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }} 
-    enableOnAndroid={true}
-    enableAutomaticScroll={true}
-    extraScrollHeight={0} 
-    keyboardShouldPersistTaps="handled"
-    showsVerticalScrollIndicator={false}
-  >
-    <View style={styles.main}>
-      <LinearGradient
-        colors={[colorConfig.primaryColor, colorConfig.secondaryColor]}
-        style={styles.gradientContainer}>
-        <ScrollView keyboardShouldPersistTaps={"handled"}>
-<View style={{paddingLeft:wScale(380) ,top:hScale(5) }}>
-    <LanguageButton />
-</View>
-          <View
-            style={styles.container}>
-            <View style={[styles.Logocontainer,]}>
-              <Image source={require('../../../assets/images/app_logo.png')}
-                style={styles.imgstyle} resizeMode='contain' />
-              <Text style={{ color: colorConfig.secondaryColor ? colorConfig.secondaryColor : 'white', fontWeight: 'bold' }}>
-                {APP_URLS.AppName}
-              </Text>
+    <KeyboardAwareScrollView
+      style={{ flex: 1, backgroundColor: 'transparent' }}
+      contentContainerStyle={{ flexGrow: 1, paddingBottom: 0 }}
+      enableOnAndroid={true}
+      enableAutomaticScroll={true}
+      extraScrollHeight={0}
+      keyboardShouldPersistTaps="handled"
+      showsVerticalScrollIndicator={false}
+    >
+      <View style={styles.main}>
+        <LinearGradient
+          colors={[colorConfig.primaryColor, colorConfig.secondaryColor]}
+          style={styles.gradientContainer}>
+          <ScrollView keyboardShouldPersistTaps={"handled"}>
+            <View style={{ paddingLeft: wScale(380), top: hScale(5) }}>
+              <LanguageButton />
             </View>
-
-
-            <View style={[styles.inputContainer, { borderRadius: Radius1 }]}>
-              <View style={styles.InputImage}>
-
-                <SvgUri
-                  height={hScale(48)}
-                  width={hScale(48)}
-                  uri={svg.personUser}
-                />
-
+            <View style={styles.container}>
+              <View style={[styles.Logocontainer,]}>
+                <Image source={require('../../../assets/images/app_logo.png')}
+                  style={styles.imgstyle} resizeMode='contain' />
+                <Text style={{ color: colorConfig.secondaryColor ? colorConfig.secondaryColor : 'white', fontWeight: 'bold' }}>
+                  {APP_URLS.AppName}
+                </Text>
               </View>
-              <TextInput
-                style={[styles.textInput,]}
-                cursorColor={'white'}
-                placeholder={translate('emailOrMobile')}
-                autoCapitalize="none"
-                placeholderTextColor={'white'}
-                value={userEmail}
-                onChangeText={text => setUserEmail(text)}
-              />
-            </View>
 
-
-            <View style={[styles.inputContainer, { borderRadius: Radius1 }]}>
-              <View style={styles.InputImage}>
-                <SvgUri
-                  height={hScale(48)}
-                  width={hScale(48)}
-                  uri={svg.Password}
-                />
-              </View>
-              <TextInput
-                style={[styles.textInput,]}
-                cursorColor={'white'}
-                placeholder={translate('password')}
-                value={userPassword}
-                onChangeText={text => setUserPassword(text)}
-                placeholderTextColor={'#fff'}
-                secureTextEntry={secureEntry}
-
-              />
-              {userPassword.length >= 5 ? (
-                <View style={styles.righticon}>
-                  <TouchableOpacity onPressOut={ToggleSecureEntry} onPressIn={ToggleSecureEntry}>
-                    <ShowEye color1="#fff" color2="#fff" />
-                  </TouchableOpacity>
+              <View style={[styles.inputContainer, { borderRadius: Radius1 }]}>
+                <View style={styles.InputImage}>
+                  <SvgUri
+                    height={hScale(48)}
+                    width={hScale(48)}
+                    uri={svg.personUser}
+                  />
                 </View>
-              ) : ''}
+                <TextInput
+                  style={[styles.textInput,]}
+                  cursorColor={'white'}
+                  placeholder={translate('emailOrMobile')}
+                  autoCapitalize="none"
+                  placeholderTextColor={'white'}
+                  value={userEmail}
+                  onChangeText={text => setUserEmail(text)}
+                />
+              </View>
 
-            </View>
-            <View style={styles.forgetrow}>
-              <TouchableOpacity style={[styles.rememberow,]}
-                onPress={() => {
-                  Keyboard.dismiss();
-                  setRemember(!remember);
-                  if (remember) {
-                    saveCredentials(userEmail, userPassword);
-                  }
+              <View style={[styles.inputContainer, { borderRadius: Radius1 }]}>
+                <View style={styles.InputImage}>
+                  <SvgUri
+                    height={hScale(48)}
+                    width={hScale(48)}
+                    uri={svg.Password}
+                  />
+                </View>
+                <TextInput
+                  style={[styles.textInput,]}
+                  cursorColor={'white'}
+                  placeholder={translate('password')}
+                  value={userPassword}
+                  onChangeText={text => setUserPassword(text)}
+                  placeholderTextColor={'#fff'}
+                  secureTextEntry={secureEntry}
+                />
+                {userPassword.length >= 5 ? (
+                  <View style={styles.righticon}>
+                    <TouchableOpacity onPressOut={ToggleSecureEntry} onPressIn={ToggleSecureEntry}>
+                      <ShowEye color1="#fff" color2="#fff" />
+                    </TouchableOpacity>
+                  </View>
+                ) : ''}
+              </View>
 
-                }} >
-                <TouchableOpacity
+              <View style={styles.forgetrow}>
+                <TouchableOpacity style={[styles.rememberow,]}
                   onPress={() => {
                     Keyboard.dismiss();
-
                     setRemember(!remember);
                     if (remember) {
                       saveCredentials(userEmail, userPassword);
                     }
-
-                  }}
-                  style={styles.remember}>
-                  {remember ?
-                    <CheckSvg size={8} />
-                    : null}
+                  }} >
+                  <TouchableOpacity
+                    onPress={() => {
+                      Keyboard.dismiss();
+                      setRemember(!remember);
+                      if (remember) {
+                        saveCredentials(userEmail, userPassword);
+                      }
+                    }}
+                    style={styles.remember}>
+                    {remember ?
+                      <CheckSvg size={8} />
+                      : null}
+                  </TouchableOpacity>
+                  <Text style={[styles.forgettext, { paddingLeft: wScale(4) }]}>
+                    {translate('remember_me')}
+                  </Text>
                 </TouchableOpacity>
-                <Text style={[styles.forgettext, { paddingLeft: wScale(4) }]}>
-                  {translate('remember_me')}
+                <TouchableOpacity
+                  onLongPress={() => {
+                    setisWriteLog(true);
+                    console.log(iswritelog)
+                  }}
+                  onPress={() => { setShowForgotPasswordModal(true) }}
+                  style={styles.forgetbtn}
+                >
+                  <Text style={[styles.forgettext, { color: iswritelog ? 'red' : '#ffff' }]}>
+                    {translate('forgotPassword')}<Text style={{ fontWeight: 'bold', fontSize: 15 }}></Text>
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <DynamicButton
+                onlong={() => { onPressLogin2("") }}
+                title={
+                  isLoading ? <ActivityIndicator color={colorConfig.labelColor} size="large" /> :
+                    "Login"}
+                onPress={() => {
+                  if (userEmail && userPassword) {
+                    onPressLogin('');
+                  } else {
+                    listenFCMDeviceToken()
+                    ToastAndroid.show("Please enter valid User ID and Password, you cannot leave it blank", ToastAndroid.SHORT);
+                  }
+                }} styleoveride={undefined}
+              />
+
+              <View style={styles.signup_continer}>
+                <Text style={styles.donthave_text}>
+                  {translate('signupText')}
                 </Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                onLongPress={() => {
-                  setisWriteLog(true);
-                  console.log(iswritelog)
+
+                <TouchableOpacity
+                  onPress={onPressSignUp}>
+                  <Text
+                    style={[styles.donthave_text, { fontWeight: 'bold', }]}>
+                    {translate('signUp')}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <ForgotPasswordModal
+                id={userEmail}
+                showForgotPasswordModal={showForgotPasswordModal}
+                setShowForgotPasswordModal={setShowForgotPasswordModal}
+                handleForgotPassword={undefined}
+              />
+
+              <OTPModal
+                setShowOtpModal={setShowOtpModal}
+                disabled={otp.length !== 6}
+                showOtpModal={ShowOtpModal}
+                setMobileOtp={setOtp}
+                verifyOtp={() => {
+                  onPressLogin(otp)
                 }}
-                onPress={() => { setShowForgotPasswordModal(true) }}
-                style={styles.forgetbtn}
-              >
-                <Text style={[styles.forgettext, { color: iswritelog ? 'red' : '#ffff' }]}>
-                  {translate('forgotPassword')}<Text style={{ fontWeight: 'bold', fontSize: 15 }}></Text>
-                </Text>
-              </TouchableOpacity>
-
+                inputCount={6}
+                sendID={userEmail}
+              />
             </View>
-            <DynamicButton
-              onlong={() => { onPressLogin2("") }}
-              title={
-                isLoading ? <ActivityIndicator color={colorConfig.labelColor} size="large" /> :
-                  "Login"}
-              onPress={() => {
 
-                if (userEmail && userPassword) {
-                  onPressLogin('');
-                } else {
-                  listenFCMDeviceToken()
-                  ToastAndroid.show("Please enter valid User ID and Password, you cannot leave it blank", ToastAndroid.SHORT);
-                }
-              }} styleoveride={undefined}
-
+            <SecurityBottomSheet
+              visible={showEnable}
+              onEnable={handleEnable}
+              onLater={handleDesable}
             />
+          </ScrollView>
 
-            <View style={styles.signup_continer}>
-              <Text style={styles.donthave_text}>
-                {translate('signupText')}
-              </Text>
+          <View style={styles.packageRow} >
+            <Text style={styles.prevText}>
+              {latestVersion.PackageName}
+            </Text>
 
-              <TouchableOpacity
-                // onLongPress={()=>registerNotification()}
-                onPress={onPressSignUp}>
-                <Text
-                  style={[styles.donthave_text, { fontWeight: 'bold', }]}>
-                  {translate('signUp')}
-                </Text>
-              </TouchableOpacity>
-            </View>
-            <ForgotPasswordModal
-              id={userEmail}
-              showForgotPasswordModal={showForgotPasswordModal}
-              setShowForgotPasswordModal={setShowForgotPasswordModal}
-              handleForgotPassword={undefined}
-            />
-            <OTPModal
-              setShowOtpModal={setShowOtpModal}
-              disabled={otp.length !== 6}
-              showOtpModal={ShowOtpModal}
-              setMobileOtp={setOtp}
-              verifyOtp={() => {
-                onPressLogin(otp)
-              }}
-              inputCount={6}
-              sendID={userEmail}
-            />
-
+            <BorderLine height={'100%'} width={.5} style={{ backgroundColor: '#fff' }} />
+            <Text style={styles.prevText}>
+              App Version : V{latestVersion.currentversion}
+            </Text>
           </View>
-          <SecurityBottomSheet
-            visible={showEnable}
-            onEnable={handleEnable}
-            onLater={handleDesable}
-
-          />
-        </ScrollView>
-        <View style={styles.packageRow} >
-
-          <Text style={styles.prevText}>
-            {latestVersion.PackageName}
-
-          </Text>
-
-          <BorderLine height={'100%'} width={.5} style={{ backgroundColor: '#fff' }} />
-          <Text style={styles.prevText}>
-            App Version : V{latestVersion.currentversion}
-          </Text>
-        </View>
-      </LinearGradient>
-    </View ></KeyboardAwareScrollView>
+        </LinearGradient>
+      </View>
+    </KeyboardAwareScrollView>
   );
 };
 
@@ -1186,7 +1143,6 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: wScale(18),
     color: '#fff',
-    // textAlign: 'center',                                                                                                                                                                                   
   },
   input: {
     color: 'black',
@@ -1222,13 +1178,11 @@ const styles = StyleSheet.create({
     borderRadius: 4
   },
   forgetbtn: {
-
     backgroundColor: 'transparent',
   },
   forgettext: {
     fontSize: wScale(15),
     color: '#fff',
-
   },
   signup_continer: {
     flexDirection: 'row',
@@ -1308,4 +1262,5 @@ const styles = StyleSheet.create({
     height: hScale(12)
   }
 });
+
 export default LoginScreen;

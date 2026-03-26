@@ -1,4 +1,4 @@
-package com.digital2pay.location;
+package com.maxuspay.location;
 
 import android.Manifest;
 import android.app.Activity;

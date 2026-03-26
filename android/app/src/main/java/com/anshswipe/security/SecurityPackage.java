@@ -1,4 +1,4 @@
-package com.digital2pay.security;
+package com.maxuspay.security;
 
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;

@@ -1,4 +1,4 @@
-package com.digital2pay.security;
+package com.maxuspay.security;
 
 import android.app.Activity;
 import android.app.KeyguardManager;

@@ -192,6 +192,7 @@ import ReferredCusPoints from '../../features/RadiantApp/components/ReferredCusP
 import RechargePin from '../../features/Recharge/RechargePin';
 import MyExpense from '../../features/Acount/MyExpense';
 import SelfieScreen from '../../features/RadiantApp/selfiescreen';
+import CommissionReport from '../../features/Acount/maxuspay';
 
 const Stack = createNativeStackNavigator();
 
@@ -1098,6 +1099,11 @@ const AppNavigator = () => {
         <Stack.Screen
         name="MyExpense"
         component={MyExpense}
+        options={{ headerShown: false }}
+      />  
+       <Stack.Screen
+        name="CommissionReport"
+        component={CommissionReport}
         options={{ headerShown: false }}
       />
           

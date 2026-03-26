@@ -1,187 +1,312 @@
 import { BottomSheet } from "@rneui/themed";
-import React, { useEffect, useState } from "react";
-import { Image, Text, TouchableOpacity, View, StyleSheet, } from "react-native";
+import React, { useCallback } from "react";
+import { Image, Text, TouchableOpacity, View, StyleSheet, Platform } from "react-native";
 import { useSelector } from "react-redux";
 import { RootState } from "../reduxUtils/store";
-import { SCREEN_HEIGHT, hScale, wScale } from "../utils/styles/dimensions";
-
-import ClosseModalSvg from "../features/drawer/svgimgcomponents/ClosseModal";
+import { hScale, wScale } from "../utils/styles/dimensions";
 import { FlashList } from "@shopify/flash-list";
 import NoDatafound from "../features/drawer/svgimgcomponents/Nodatafound";
 import ClosseModalSvg2 from "../features/drawer/svgimgcomponents/ClosseModal2";
+import { translate } from "../utils/languageUtils/I18n";
 
-const RecentHistory = ({
+// ─── Operator Image Map ───────────────────────────────────────────────────────
 
+const OPERATOR_IMAGES: Record<string, any> = {
+  JIO: require(".././utils/svgUtils/JIO.png"),
+  "Jio Lite": require(".././utils/svgUtils/JIO.png"),
+  Vodafone: require(".././utils/svgUtils/VI.png"),
+  Vodaidea: require(".././utils/svgUtils/VI.png"),
+  Airtel: require(".././utils/svgUtils/Airtel.png"),
+  "Airtel Pre On Post": require(".././utils/svgUtils/Airtel.png"),
+  BSNL: require(".././utils/svgUtils/BSNL.png"),
+};
+
+const getOperatorImage = (name: string) =>
+  OPERATOR_IMAGES[name] ?? require(".././utils/svgUtils/exclamation-mark.png");
+
+// ─── Status Config ────────────────────────────────────────────────────────────
+
+const STATUS_CONFIG: Record<string, { color: string; bg: string; dot: string }> = {
+  SUCCESS: { color: "#15803D", bg: "#DCFCE7", dot: "#22C55E" },
+  FAILED:  { color: "#B91C1C", bg: "#FEE2E2", dot: "#EF4444" },
+};
+
+const getStatusConfig = (status: string) =>
+  STATUS_CONFIG[status] ?? { color: "#92400E", bg: "#FEF3C7", dot: "#F59E0B" };
+
+// ─── Transaction Item ─────────────────────────────────────────────────────────
+
+const TransactionItem = React.memo(({ item, index, themeColor }: { item: any; index: number; themeColor: string }) => {
+  const status = item["Status"] ?? "";
+  const { color, bg, dot } = getStatusConfig(status);
+  const isLast = index === 4;
+
+  return (
+    <View style={[styles.itemRow, !isLast && styles.itemDivider]}>
+      {/* Operator Logo */}
+      <View style={[styles.logoWrap, { backgroundColor: `${themeColor}12` }]}>
+        <Image source={getOperatorImage(item["Operator_name"])} style={styles.logo} />
+      </View>
+
+      {/* Info */}
+      <View style={styles.infoCol}>
+        <Text style={styles.operatorName} numberOfLines={1}>
+          {item["Operator_name"]}
+        </Text>
+        <Text style={styles.mobileNum}>{item["Recharge_number"]}</Text>
+        <Text style={styles.dateText}>{item["Reqesttime"]}</Text>
+      </View>
+
+      {/* Right Side */}
+      <View style={styles.rightCol}>
+        <Text style={styles.amount}>₹{item["Recharge_amount"]}</Text>
+        <View style={[styles.statusBadge, { backgroundColor: bg }]}>
+          <View style={[styles.statusDot, { backgroundColor: dot }]} />
+          <Text style={[styles.statusText, { color }]}>{status}</Text>
+        </View>
+      </View>
+    </View>
+  );
+});
+
+// ─── Main Component ───────────────────────────────────────────────────────────
+
+interface Props {
+  isModalVisible: boolean;
+  setModalVisible: (v: boolean) => void;
+  historylistdata: any[];
+  onBackdropPress: () => void;
+}
+
+const RecentHistory: React.FC<Props> = ({
   isModalVisible,
   setModalVisible,
   historylistdata,
   onBackdropPress,
 }) => {
   const { colorConfig } = useSelector((state: RootState) => state.userInfo);
-  const color1 = `${colorConfig.secondaryColor}20`;
-  const color3 = `${colorConfig.primaryColor}10`;
+  const themeColor: string = colorConfig?.primaryColor || "#0A84FF";
 
-
-  const recenttransactionlist = () => {
-    return (
-      historylistdata.length === 0 ? (
-        <View style={styles.nodataview}>
-          <NoDatafound />
-
-        </View>
-      ) : (
-        <FlashList
-          data={historylistdata}
-          renderItem={({ item }: { item: any }) => {
-            return (
-              <TouchableOpacity style={[styles.transactionContainer, { backgroundColor: color3 }]}>
-                {item['Operator_name'] === 'JIO' ? (
-                  <Image source={require('.././utils/svgUtils/JIO.png')} style={styles.operatioimg} />
-                ) : item['Operator_name'] === 'Vodafone' || item['Operator_name'] === 'Vodaidea' ? (
-                  <Image source={require('.././utils/svgUtils/VI.png')} style={styles.operatioimg} />
-                ) : item['Operator_name'] === 'Airtel' || item['Operator_name'] === 'Airtel Pre On Post' ? (
-                  <Image source={require('.././utils/svgUtils/Airtel.png')} style={styles.operatioimg} />
-                ) : item['Operator_name'] === 'BSNL' ? (
-                  <Image source={require('.././utils/svgUtils/BSNL.png')} style={styles.operatioimg} />
-                ) : item['Operator_name'] === 'Jio Lite' ? (
-                  <Image source={require('.././utils/svgUtils/JIO.png')} style={styles.operatioimg} />
-                ) : (
-                  <Image source={require('.././utils/svgUtils/exclamation-mark.png')} style={styles.operatioimg} />
-                )}
-
-                <View style={styles.leftContainer}>
-                  <Text style={styles.dateTimeText}>{item['Reqesttime']}</Text>
-                  <Text style={styles.mobileNumberText}>{item['Recharge_number']}</Text>
-                  <Text style={styles.mobileNumberText}>{item['Operator_name']}</Text>
-                </View>
-
-                <View style={styles.rightContainer}>
-                  <Text style={styles.amountText}>₹ {item['Recharge_amount']}</Text>
-                  <Text style={[
-                    styles.rechTypeText,
-                    {
-                      color: item['Status'] === 'SUCCESS' ? 'green' : item['Status'] === 'FAILED' ? 'red' :
-                        '#a89b0a'
-                    }
-                  ]}>
-                    {item['Status']}
-                  </Text>
-                </View>
-              </TouchableOpacity>
-            );
-          }}
-          keyExtractor={(item, index) => index.toString()}
-        />
-      )
-    );
-  };
-  useEffect(() => {
-  })
+  const renderItem = useCallback(
+    ({ item, index }: { item: any; index: number }) => (
+      <TransactionItem item={item} index={index} themeColor={themeColor} />
+    ),
+    [themeColor],
+  );
 
   return (
     <BottomSheet
-animationType="none"
+      animationType="none"
       isVisible={isModalVisible}
       onBackdropPress={onBackdropPress}
-      containerStyle={{ backgroundColor: 'rgba(0.5, 0.25, 0, 0.8)', paddingBottom:hScale(70)}}>
-      <View style={styles.bottomsheetview}>
-        <View style={[styles.StateTitle, { backgroundColor: color1 }]}>
-          <View style={styles.titleview}>
-            <Text style={styles.stateTitletext}>
-              Recent 5 Transaction
-            </Text>
+      containerStyle={styles.overlay}
+    >
+      <View style={styles.sheet}>
+        {/* Handle bar */}
+        <View style={styles.handle} />
+
+        {/* Header */}
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.headerTitle}>{translate("Recent_Transactions")}</Text>
+            <Text style={styles.headerSub}>{translate("Last_5_recharges")}</Text>
           </View>
           <TouchableOpacity
             onPress={() => setModalVisible(false)}
-
-            activeOpacity={0.7}>
+            activeOpacity={0.7}
+            style={styles.closeBtn}
+          >
             <ClosseModalSvg2 />
           </TouchableOpacity>
         </View>
-        {recenttransactionlist()}
+
+        {/* Divider */}
+        <View style={styles.headerDivider} />
+
+        {/* List */}
+        {historylistdata.length === 0 ? (
+          <View style={styles.emptyWrap}>
+            <NoDatafound />
+            <Text style={styles.emptyText}>{translate("No_transactions_yet")}</Text>
+          </View>
+        ) : (
+          <View style={styles.listWrap}>
+            <FlashList
+              data={historylistdata}
+              renderItem={renderItem}
+              keyExtractor={(_, i) => i.toString()}
+              estimatedItemSize={76}
+              scrollEnabled={false}
+            />
+          </View>
+        )}
       </View>
     </BottomSheet>
   );
 };
+
+export default React.memo(RecentHistory);
+
+// ─── Styles ───────────────────────────────────────────────────────────────────
+
 const styles = StyleSheet.create({
-  bottomsheetview: {
-    backgroundColor: "#fff",
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
+  overlay: {
+    backgroundColor: "rgba(0,0,0,0.5)",
   },
-  StateTitle: {
-    paddingVertical: hScale(10),
-    borderTopLeftRadius: 15,
-    borderTopRightRadius: 15,
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    flexDirection: 'row',
-    paddingHorizontal: wScale(10),
-    marginBottom: hScale(10)
-  },
-  stateTitletext: {
-    fontSize: wScale(22),
-    color: '#000',
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
-  },
-  titleview: {
-    flex: 1,
-    alignItems: 'center',
-    flexDirection: 'row',
-    justifyContent: 'center'
-  },
-  transactionContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: wScale(8),
-    backgroundColor: '#f5f5f5',
-    borderRadius: 10,
-    marginBottom: hScale(10),
-    paddingVertical: hScale(10),
-    marginHorizontal: wScale(10)
-  },
-  leftContainer: {
-    flex: 1,
-  },
-  dateTimeText: {
-    fontSize: wScale(14),
-    fontWeight: 'bold',
-    marginBottom: hScale(5),
+  sheet: {
+    backgroundColor: "#FFF",
+    borderTopLeftRadius: wScale(24),
+    borderTopRightRadius: wScale(24),
+    paddingBottom: hScale(28),
+    ...Platform.select({
+      ios: {
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: -4 },
+        shadowOpacity: 0.08,
+        shadowRadius: 12,
+      },
+    }),
   },
 
-  mobileNumberText: {
-    fontSize: 14,
-    color: '#555',
+  // Handle
+  handle: {
+    width: wScale(36),
+    height: hScale(4),
+    backgroundColor: "#E5E5EA",
+    borderRadius: 10,
+    alignSelf: "center",
+    marginTop: hScale(12),
+    marginBottom: hScale(4),
   },
-  amountText: {
-    fontSize: wScale(18),
-    fontWeight: 'bold',
-    color: '#000',
+
+  // Header
+  header: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingHorizontal: wScale(20),
+    paddingVertical: hScale(14),
   },
-  rechTypeText: {
+  headerTitle: {
+    fontSize: wScale(17),
+    fontWeight: "700",
+    color: "#1C1C1E",
+    letterSpacing: 0.2,
+  },
+  headerSub: {
+    fontSize: wScale(12),
+    color: "#8E8E93",
+    marginTop: hScale(2),
+    fontWeight: "500",
+  },
+  closeBtn: {
+    width: wScale(34),
+    height: wScale(34),
+    borderRadius: wScale(17),
+    backgroundColor: "#F2F2F7",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  headerDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: "#E5E5EA",
+    marginHorizontal: wScale(20),
+  },
+
+  // List
+  listWrap: {
+    paddingHorizontal: wScale(16),
+    paddingTop: hScale(4),
+    minHeight: hScale(50),
+  },
+
+  // Transaction Row
+  itemRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: hScale(14),
+    gap: wScale(12),
+  },
+  itemDivider: {
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "#F2F2F7",
+  },
+
+  // Operator logo
+  logoWrap: {
+    width: wScale(46),
+    height: wScale(46),
+    borderRadius: wScale(12),
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  logo: {
+    width: wScale(30),
+    height: wScale(30),
+    resizeMode: "contain",
+  },
+
+  // Info column
+  infoCol: {
+    flex: 1,
+    gap: hScale(2),
+  },
+  operatorName: {
     fontSize: wScale(14),
-    color: '#666',
+    fontWeight: "700",
+    color: "#1C1C1E",
+    letterSpacing: 0.1,
   },
-  rightContainer: {
-    marginLeft: wScale(15),
-    alignItems: 'flex-end',
+  mobileNum: {
+    fontSize: wScale(13),
+    color: "#3C3C43",
+    fontWeight: "500",
   },
-  nodata: {
-    width: '100%',
-    textAlign: 'center',
-    color: '#000',
-    fontSize: wScale(16)
+  dateText: {
+    fontSize: wScale(11),
+    color: "#8E8E93",
+    fontWeight: "400",
   },
-  nodataview: {
-    alignItems: 'center',
-    paddingBottom: hScale(20)
+
+  // Right column
+  rightCol: {
+    alignItems: "flex-end",
+    gap: hScale(6),
   },
-  operatioimg: {
-    width: wScale(45),
-    height: wScale(45),
-    marginRight: wScale(20),
+  amount: {
+    fontSize: wScale(16),
+    fontWeight: "800",
+    color: "#1C1C1E",
+    letterSpacing: 0.3,
+  },
+  statusBadge: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: wScale(8),
+    paddingVertical: hScale(3),
+    borderRadius: wScale(20),
+    gap: wScale(4),
+  },
+  statusDot: {
+    width: wScale(5),
+    height: wScale(5),
+    borderRadius: wScale(3),
+  },
+  statusText: {
+    fontSize: wScale(10),
+    fontWeight: "700",
+    letterSpacing: 0.3,
+  },
+
+  // Empty
+  emptyWrap: {
+    alignItems: "center",
+    paddingVertical: hScale(30),
+    gap: hScale(8),
+  },
+  emptyText: {
+    fontSize: wScale(14),
+    color: "#8E8E93",
+    fontWeight: "500",
   },
 });
-export default RecentHistory;

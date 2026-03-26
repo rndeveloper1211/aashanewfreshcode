@@ -1,4 +1,4 @@
-package com.digital2pay.location;
+package com.maxuspay.location;
 
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;

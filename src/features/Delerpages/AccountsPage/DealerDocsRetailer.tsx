@@ -8,6 +8,8 @@ import { RootState } from '../../../reduxUtils/store';
 import ShowLoader from '../../../components/ShowLoder';
 import useAxiosHook from '../../../utils/network/AxiosClient';
 import { useNavigation } from '../../../utils/navigation/NavigationService';
+import { check, PERMISSIONS, RESULTS, openSettings, request } from 'react-native-permissions';
+import { ALERT_TYPE, Dialog } from 'react-native-alert-notification';
 
 const DealerDocsRetailer = ({ route }) => {
   const { colorConfig } = useSelector((state: RootState) => state.userInfo);
@@ -44,108 +46,99 @@ const DealerDocsRetailer = ({ route }) => {
 
   const navigation = useNavigation();
 
-  const handleImageSelect = useCallback(
-    (side) => {
-      if (side === 'Aadhar Card Back' || side === 'Aadhar Card Front') {
-        navigation.navigate('AadharCardUpload', { id: item.UserID });
-        return
+const handleImageSelect = useCallback(
+  async (side) => {
+    if (side === 'Aadhar Card Back' || side === 'Aadhar Card Front') {
+      navigation.navigate('AadharCardUpload', { id: item.UserID });
+      return;
+    }
+
+    if (side === 'Video KYC') {
+      const CNTNT = {
+        hindi: `मैं ${item.Name} फर्म का नाम ${item.firmName}...`,
+        Eng: `I, ${item.Name}, representing the firm ${item.firmName}...`,
+      };
+      navigation.navigate('VideoKYC', { CNTNT });
+      return;
+    }
+
+    // ✅ Options
+    const options = {
+      selectionLimit: 1,
+      mediaType: 'photo',
+      includeBase64: true,
+    };
+
+    const cameraOptions = {
+      ...options,
+      cameraType: 'back',
+      saveToPhotos: false,  // ✅ Add kiya
+    };
+
+    const handleResponse = (response) => {
+      if (response.didCancel) {
+        Alert.alert('Image selection cancelled.');
+      } else if (response.errorCode) {
+        Alert.alert('ImagePicker Error: ', response.errorMessage);
+      } else {
+        setIsLoading(true);
+        const base64Image = response.assets?.[0]?.base64;
+        if (base64Image) {
+          uploadDoCx(side, base64Image);
+          setDocumentPaths((prev) =>
+            prev.map((doc) =>
+              doc.title === side
+                ? { ...doc, base64: `data:image/jpeg;base64,${base64Image}` }
+                : doc
+            )
+          );
+        } else {
+          Alert.alert('Base64 image data not available');
+        }
       }
+    };
 
+    // ✅ Camera permission check
+    const checkAndLaunchCamera = async () => {
+      const status = await check(PERMISSIONS.ANDROID.CAMERA);
 
-
-      if (side === 'Video KYC') {
-        const CNTNT = {
-          hindi: `मैं ${item.Name} फर्म का नाम ${item.firmName} घोषणा करता हूं कि मैं ${APP_URLS.AppName} का रिटेलर हूं मेरा पता ${item.Address} है। मैं अपनी दुकान के सामने खड़ा हूं और मेरे हाथ में आधार कार्ड है जिसे मैं दोनों तरफ से दिखा रहा हूं और साथ ही पैन कार्ड भी दिखा रहा हूं।`,
-          Eng: `I, ${item.Name}, representing the firm ${item.firmName}, hereby declare that I am a retailer of ${APP_URLS.AppName}. My address is ${item.Address}. I am standing in front of my shop, holding my Aadhaar card, which I am showing from both sides, and I am also displaying my PAN card.`,
-        };
-
-        navigation.navigate('VideoKYC', {
-          CNTNT,
+      if (status === RESULTS.BLOCKED) {
+        Dialog.show({
+          type: ALERT_TYPE.WARNING,
+          title: 'Permission Required',
+          textBody: 'Please allow camera access from settings',
+          button: 'Open Settings',
+          onPressButton: () => {
+            Dialog.hide();
+            openSettings().catch(() => {});
+          },
         });
         return;
       }
 
-      console.log('Selected side:', side);
+      if (status !== RESULTS.GRANTED) {
+        const result = await request(PERMISSIONS.ANDROID.CAMERA);
+        if (result !== RESULTS.GRANTED) return;
+      }
 
-      const options = {
-        selectionLimit: 1,
-        mediaType: 'photo',
-        includeBase64: true,
-      };
-
-      const cameraOptions = {
-        ...options,
-        cameraType: 'back',
-      };
-
-      const handleResponse = (response) => {
-        if (response.didCancel) {
-          Alert.alert('Image selection cancelled.');
-        } else if (response.errorCode) {
-          Alert.alert('ImagePicker Error: ', response.errorMessage);
-        } else {
-          setIsLoading(true);
-
-          const base64Image = response.assets?.[0]?.base64;
-
-          if (base64Image) {
-            uploadDoCx(side, base64Image);
-
-            setDocumentPaths((prev) =>
-              prev.map((doc) =>
-                doc.title === side
-                  ? { ...doc, base64: `data:image/jpeg;base64,${base64Image}` }
-                  : doc
-              )
-            );
-          } else {
-            Alert.alert('Base64 image data not available');
-          }
-        }
-      };
-
-      Alert.alert(
-        'Select Image',
-        'key_choosean_21',
-        [
-          { text: 'Cancel', onPress: () => { } },
-          {
-            text: 'Camera',
-            onPress: () => launchCamera(cameraOptions, handleResponse),
-          },
-          {
-            text: 'Gallery',
-            onPress: () => launchImageLibrary(options, handleResponse),
-          },
-        ]
-      );
-    },
-    [item, navigation, setIsLoading, setDocumentPaths, uploadDoCx]
-  );
-
-
-
-  const launchCameraHandler = (key) => {
-    const options = {
-      mediaType: 'photo',
-      quality: 1,
+      launchCamera(cameraOptions, handleResponse);
     };
 
-    launchCamera(options, (response) => {
-      handleResponse(response, key);
-    });
-  };
+    Alert.alert(
+      'Select Image',
+      'key_choosean_21',
+      [
+        { text: 'Cancel', onPress: () => {} },
+        { text: 'Camera', onPress: checkAndLaunchCamera },           // ✅
+        { text: 'Gallery', onPress: () => launchImageLibrary(options, handleResponse) },
+      ]
+    );
+  },
+  [item, navigation, setIsLoading, setDocumentPaths, uploadDoCx]
+);
 
-  const launchGalleryHandler = (key) => {
-    const options = {
-      mediaType: 'photo',
-      quality: 1,
-    };
 
-    launchImageLibrary(options, (response) => {
-      handleResponse(response, key);
-    });
-  };
+  
   // const uploadDoCx = async (typ, bs64) => {
   //   console.log(typ)
 

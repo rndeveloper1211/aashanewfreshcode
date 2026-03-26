@@ -1,535 +1,654 @@
-import React, { useEffect, useState } from "react";
-
+import React, { useEffect, useRef, useState } from "react";
 import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TouchableOpacity,
+  Animated,
   Linking,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
 } from "react-native";
 import LinearGradient from "react-native-linear-gradient";
-import { useSelector } from "react-redux";
-import { RootState } from "../../../reduxUtils/store";
-import { Svg, SvgXml } from "react-native-svg";
 import { useNavigation } from "@react-navigation/native";
+import { useSelector } from "react-redux";
+import { SvgXml } from "react-native-svg";
+import { RootState } from "../../../reduxUtils/store";
 import { hScale, wScale } from "../../../utils/styles/dimensions";
 import AppBar from "../headerAppbar/AppBar";
 import useAxiosHook from "../../../utils/network/AxiosClient";
 import { APP_URLS } from "../../../utils/network/urls";
 import { translate } from "../../../utils/languageUtils/I18n";
+import { color } from "@rneui/base";
 
-const HelpAndSupport = () => {
-  const backbutton =
-    '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="20" height="20" x="0" y="0" viewBox="0 0 512 512" style="enable-background:new 0 0 512 512" xml:space="preserve" class=""><g><linearGradient id="a" x1="219.858" x2="478.003" y1="387.123" y2="128.977" gradientTransform="matrix(1 0 0 -1 0 514.05)" gradientUnits="userSpaceOnUse"><stop stop-opacity="1" stop-color="#ff5e45" offset="0.004629617637840665"></stop><stop stop-opacity="1" stop-color="#e5596f" offset="1"></stop></linearGradient><path fill="url(#a)" d="M385.1 405.7c20 20 20 52.3 0 72.3s-52.3 20-72.3 0L126.9 292.1c-20-20-20-52.3 0-72.3L312.8 34c20-20 52.3-20 72.3 0s20 52.3 0 72.3L235.4 256z" opacity="1" data-original="url(#a)" class=""></path></g></svg>';
-  const help =
-    '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="110" height="110" x="0" y="0" viewBox="0 0 32 32" style="enable-background:new 0 0 512 512" xml:space="preserve" class=""><g><g data-name="Layer 2"><path d="M23.917 13.75v3.493a1.751 1.751 0 0 0 1.746 1.75 1.779 1.779 0 0 0 .398-.045l1.558-.36a2.737 2.737 0 0 0 2.131-2.679v-1.818a2.737 2.737 0 0 0-2.13-2.68l-1.56-.36a1.766 1.766 0 0 0-.791.002 9.406 9.406 0 0 0-18.538 0 1.76 1.76 0 0 0-.792-.001l-1.558.36A2.737 2.737 0 0 0 2.25 14.09v1.818a2.737 2.737 0 0 0 2.13 2.68l1.56.36a1.785 1.785 0 0 0 .397.045 1.751 1.751 0 0 0 1.746-1.75v-4.578a7.917 7.917 0 0 1 15.834 0zM18.5 25.5a2.253 2.253 0 0 0-2.25-2.25c-.06 0-.115.013-.173.018a.713.713 0 0 0-.2-.008 7.826 7.826 0 0 1-5.47-1.027 7.098 7.098 0 0 1-1.81-1.686.75.75 0 1 0-1.195.906 8.556 8.556 0 0 0 2.192 2.041 8.813 8.813 0 0 0 4.508 1.373A2.213 2.213 0 0 0 14 25.5a2.25 2.25 0 0 0 4.5 0z" fill="#fff" opacity="1" data-original="#000000" class=""></path><path d="M22.68 13.024a6.751 6.751 0 0 0-13.418 1.38 6.845 6.845 0 0 0 6.91 6.346H21.1a1.05 1.05 0 0 0 .63-1.89l-.617-.463a6.767 6.767 0 0 0 1.568-5.373zM13.5 14.75a.75.75 0 1 1 .75-.75.75.75 0 0 1-.75.75zm2.5 0a.75.75 0 1 1 .75-.75.75.75 0 0 1-.75.75zm2.5 0a.75.75 0 1 1 .75-.75.75.75 0 0 1-.75.75z" fill="#fff" opacity="1" data-original="#000000" class=""></path></g></g></svg>';
-  const call =
-    '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="50" height="50" x="0" y="0" viewBox="0 0 512 512" style="enable-background:new 0 0 512 512" xml:space="preserve" class=""><g><path fill="#c9c9c9" d="M415.737 238.933H38.404a8.534 8.534 0 0 0-8.279 6.464L.259 364.864c-1.346 5.386 2.727 10.603 8.279 10.603H126.13v11.026h249.337v-11.026h10.404a8.534 8.534 0 0 0 8.279-6.464l29.867-119.467c1.345-5.385-2.728-10.603-8.28-10.603z" opacity="1" data-original="#d83131" class=""></path><path fill="#545454" d="M415.737 238.933h-23.694c5.551 0 9.625 5.217 8.279 10.603l-29.867 119.467a8.534 8.534 0 0 1-8.278 6.464h-10.404v11.026h23.694v-11.026h10.404a8.534 8.534 0 0 0 8.279-6.464l29.867-119.467c1.345-5.385-2.728-10.603-8.28-10.603z" opacity="1" data-original="#c41926" class=""></path><g fill="#f8f6f6"><path d="M96.263 512h377.333a8.534 8.534 0 0 0 8.279-6.464l29.867-119.467c1.346-5.386-2.727-10.603-8.279-10.603H126.129a8.534 8.534 0 0 0-8.279 6.464L87.984 501.397C86.638 506.783 90.711 512 96.263 512z" fill="#343434" opacity="1" data-original="#f8f6f6" class=""></path><path d="M96.263 512h377.333a8.534 8.534 0 0 0 8.279-6.464l29.867-119.467c1.346-5.386-2.727-10.603-8.279-10.603H126.129a8.534 8.534 0 0 0-8.279 6.464L87.984 501.397C86.638 506.783 90.711 512 96.263 512zM152.598 325.779a7.726 7.726 0 0 0-10.885.953 19.76 19.76 0 0 1-1.989 2.054c-3.593 3.199-8.167 4.821-13.595 4.821-14.561 0-26.407-11.846-26.407-26.407s11.846-26.407 26.407-26.407a26.266 26.266 0 0 1 14.759 4.505 7.725 7.725 0 0 0 10.727-2.077 7.725 7.725 0 0 0-2.077-10.727c-6.927-4.68-15.022-7.153-23.409-7.153-23.081 0-41.86 18.778-41.86 41.86 0 23.081 18.778 41.86 41.86 41.86 9.201 0 17.456-3.02 23.872-8.734a35.44 35.44 0 0 0 3.55-3.661 7.73 7.73 0 0 0-.953-10.887zM217.49 271.297c-.027-.07-.054-.141-.083-.21a9.24 9.24 0 0 0-8.576-5.747h-.009a9.24 9.24 0 0 0-8.643 5.938l-25.634 67.305a7.725 7.725 0 0 0 7.218 10.478 7.73 7.73 0 0 0 7.222-4.978l4.489-11.786h30.52l4.44 11.764a7.726 7.726 0 0 0 9.957 4.501 7.726 7.726 0 0 0 4.501-9.957zm-18.131 45.548 9.445-24.798 9.358 24.798zM293.657 333.549c-5.591.031-11.598.054-16.135.057v-60.54a7.726 7.726 0 1 0-15.452 0v68.209a7.725 7.725 0 0 0 6.421 7.615c.556.096 1.008.173 8.503.173 3.644 0 8.955-.019 16.75-.062a7.727 7.727 0 0 0 7.683-7.77c-.024-4.266-3.48-7.688-7.77-7.682zM351.696 333.549c-5.591.031-11.599.054-16.135.057v-60.54a7.726 7.726 0 1 0-15.452 0v68.209a7.725 7.725 0 0 0 6.422 7.615c.556.096 1.007.173 8.5.173 3.644 0 8.956-.019 16.754-.062a7.727 7.727 0 0 0 7.683-7.77 7.723 7.723 0 0 0-7.772-7.682z" fill="#343434" opacity="1" data-original="#f8f6f6" class=""></path></g><circle cx="256" cy="119.467" r="119.467" fill="#53ba56" transform="rotate(-45 255.997 119.522)" opacity="1" data-original="#a2e62e" class=""></circle><path fill="#165418" d="M256 0c-3.998 0-7.95.2-11.847.584 60.418 5.948 107.62 56.901 107.62 118.883 0 61.981-47.202 112.934-107.62 118.882 3.897.384 7.849.584 11.847.584 65.98 0 119.467-53.487 119.467-119.466C375.467 53.487 321.98 0 256 0z" opacity="1" data-original="#32db1f" class=""></path><path fill="#343434" d="m317.072 142.871-12.068-12.068c-6.665-6.665-17.471-6.665-24.136 0-6.665 6.665-17.471 6.665-24.136 0l-12.068-12.068c-6.665-6.665-6.665-17.471 0-24.136 6.665-6.665 6.665-17.471 0-24.136l-12.068-12.068c-6.665-6.665-17.471-6.665-24.136 0l-12.068 12.068c-13.33 13.33-13.33 34.942 0 48.272l60.34 60.34c13.33 13.33 34.942 13.33 48.272 0l12.068-12.068c6.665-6.665 6.665-17.471 0-24.136z" opacity="1" data-original="#f8f6f6" class=""></path><path fill="#000000" d="m317.072 142.871-12.068-12.068c-6.665-6.665-17.471-6.665-24.136 0-6.665 6.665-17.471 6.665-24.136 0l-12.068-12.068c-6.665-6.665-6.665-17.471 0-24.136s6.665-17.471 0-24.136l-12.068-12.068c-6.665-6.665-17.471-6.665-24.136 0l-3.784 3.784c4.662-.244 9.405 1.395 12.966 4.956l12.068 12.068c6.665 6.665 6.665 17.471 0 24.136s-6.665 17.471 0 24.136l12.068 12.068c6.665 6.665 17.471 6.665 24.136 0s17.471-6.665 24.136 0l3.328 3.328c6.665 6.665 6.665 17.471 0 24.136l-12.068 12.068a33.985 33.985 0 0 1-12.289 7.874c12.113 4.474 26.253 1.855 35.983-7.874l12.068-12.068c6.665-6.665 6.665-17.471 0-24.136zM503.462 375.467h-23.694c5.552 0 9.625 5.217 8.279 10.603L458.18 505.536a8.534 8.534 0 0 1-8.279 6.464h23.694a8.534 8.534 0 0 0 8.279-6.464l29.867-119.467c1.346-5.385-2.727-10.602-8.279-10.602z" opacity="1" data-original="#e2e2e2" class=""></path><g fill="#d83131"><path d="M208.169 401.874h-.076a7.726 7.726 0 0 0-7.651 7.801l.428 44.235-33.543-48.573a7.727 7.727 0 0 0-14.084 4.39v68.139a7.726 7.726 0 1 0 15.452 0v-43.354l31.989 46.322c2.302 3.327 6.129 4.747 9.751 3.614 3.703-1.157 6.096-4.643 6.096-8.958l-.638-65.966a7.724 7.724 0 0 0-7.724-7.65zM420.806 402.147a7.727 7.727 0 0 0-9.086 6.07l-8.533 42.877-13.484-43.769a7.727 7.727 0 0 0-14.952.722L361.424 451.1l-8.506-43a7.726 7.726 0 0 0-15.159 2.999l13.301 67.241c.073.369.173.732.299 1.086a9.274 9.274 0 0 0 8.732 6.166l.062-.001a9.273 9.273 0 0 0 8.778-6.486l13.389-43.257 13.329 43.267a9.274 9.274 0 0 0 8.835 6.477l.062-.001a9.273 9.273 0 0 0 8.712-6.283c.109-.32.197-.648.263-.98l13.354-67.097a7.725 7.725 0 0 0-6.069-9.084zM277.072 401.874c-23.081 0-41.86 18.778-41.86 41.86 0 23.081 18.778 41.86 41.86 41.86s41.86-18.778 41.86-41.86-18.778-41.86-41.86-41.86zm0 68.266c-14.561 0-26.407-11.846-26.407-26.407s11.846-26.407 26.407-26.407 26.407 11.846 26.407 26.407-11.846 26.407-26.407 26.407z" fill="#c9c9c9" opacity="1" data-original="#d83131" class=""></path></g></g></svg>';
-  const sendmail =
-    '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="50" height="50" x="0" y="0" viewBox="0 0 23959 24750" style="enable-background:new 0 0 512 512" xml:space="preserve" fill-rule="evenodd" class=""><g transform="matrix(1,2.4492935982947064e-16,-2.4492935982947064e-16,1,3.637978807091713e-12,-3.637978807091713e-12)"><path fill="#c4ceda" d="m19494 16721 2237-1115c330-164 703-122 989 112 286 233 400 591 304 948l-2001 7404c-75 278-255 487-520 602-265 114-540 104-794-32l-1887-1001-685 698c-226 230-528 321-844 255-315-67-555-273-668-575l-583-1554-2193-661c-367-111-616-418-648-800-33-382 161-727 504-898l5980-2980c-125-6-249-38-369-98l-5028-2505-3416 4025c-240 283-602 391-958 287-355-105-601-392-649-760l-920-6997-5844-1166c-412-82-707-418-735-837s219-791 616-928l2076-714L22681 816c332-114 675-39 929 202l64 60c195 185 292 419 285 688-5 219-78 411-216 570l-3817 13056c0 2-1 4-1 6l-312 1064c-28 95-67 182-119 259z" opacity="1" data-original="#c4ceda" class=""></path><path fill="#ffffff" d="m18731 15957 2236-1114c330-165 704-123 989 111 286 234 401 592 304 948l-2001 7404c-75 279-255 487-520 602-264 115-540 104-794-31l-1886-1002-685 698c-226 230-529 322-844 255-316-67-555-273-669-575l-582-1553-2193-662c-367-111-616-418-649-800-32-382 161-727 505-898l5980-2980c-125-5-250-38-370-98l-5028-2505-3416 4026c-240 282-602 391-958 286-355-105-601-392-649-760l-920-6997L737 9147c-411-82-707-418-735-837s219-792 616-929l2077-714L21917 52c332-114 675-39 929 202l64 61c195 185 292 418 285 687-5 219-78 412-216 570l-3817 13056c0 2-1 4-1 6l-312 1065c-27 95-67 181-118 258z" opacity="1" data-original="#ffffff" class=""></path><path fill="#01c5ff" d="m12350 20161 9026-4498-2001 7404-2491-1322-1165 1186-741-1978z" opacity="1" data-original="#f2384e" class=""></path><path fill="#ecf0f1" d="M22216 919 917 8248l6487 1294z" opacity="1" data-original="#ecf0f1" class=""></path><path fill="#4d4d4d" d="m917 8248 6487 1294 4306-2507-8717 499z" opacity="1" data-original="#53b4ed" class=""></path><path fill="#c6cbd6" d="m7404 9542 1005 7648L22216 919z" opacity="1" data-original="#c6cbd6"></path><path fill="#6b6b6b" d="m7404 9542 1005 7648 6171-7272-1065-1736-2110 1762 305-2909z" opacity="1" data-original="#2a68a6" class=""></path><path fill="#ecf0f1" d="M22216 919 9734 11338l-1325 5852z" opacity="1" data-original="#ecf0f1" class=""></path><path fill="#161616" d="m11405 9944-1671 1394-1325 5852 6171-7272-1065-1736z" opacity="1" data-original="#225991" class=""></path><path fill="#ecf0f1" d="M17970 15442 22216 919 9734 11338z" opacity="1" data-original="#ecf0f1" class=""></path><path fill="#4d4d4d" d="m9725 11338 8236 4104 322-1071-4174-6685z" opacity="1" data-original="#53b4ed" class=""></path><path fill="#434343" d="m9725 11338 280 140 4230-3590-126-202z" opacity="1" data-original="#74c3f1" class=""></path><path fill="#ffffff" d="m22216 919-350 120-10559 6019 403-23z" opacity="1" data-original="#ffffff" class=""></path><path fill="#434343" d="M11307 7058 6925 9447l479 95 4306-2507z" opacity="1" data-original="#74c3f1" class=""></path><path fill="#ffffff" d="m22279 979-63-60-8107 6767 126 202z" opacity="1" data-original="#ffffff" class=""></path></g></svg>';
-  const chat =
-    '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="50" height="50" x="0" y="0" viewBox="0 0 512 512" style="enable-background:new 0 0 512 512" xml:space="preserve" class=""><g><path d="M469.333 8.531H196.267c-23.526 0-42.667 19.14-42.667 42.667v170.667c0 23.526 19.14 42.667 42.667 42.667h133.444l100.027 83.356c5.459 4.55 13.996.514 13.996-6.556v-76.8h25.6c23.526 0 42.667-19.14 42.667-42.667V51.198C512 27.671 492.86 8.531 469.333 8.531z" style="" fill="#4c5251" data-original="#74dbc9" opacity="1" class=""></path><path d="M179.2 221.865V51.198c0-23.526 19.14-42.667 42.667-42.667h-25.6c-23.526 0-42.667 19.14-42.667 42.667v170.667c0 23.526 19.14 42.667 42.667 42.667h25.6c-23.527-.001-42.667-19.14-42.667-42.667zM355.311 264.531h-25.6l100.027 83.356c5.459 4.55 13.996.514 13.996-6.556v-3.115l-88.423-73.685z" style="" fill="#303635" data-original="#6ac8b7" class="" opacity="1"></path><path d="M435.2 85.331h-76.8a8.533 8.533 0 0 1 0-17.066h76.8a8.533 8.533 0 0 1 0 17.066zM366.933 153.598H230.4a8.533 8.533 0 0 1 0-17.066h136.533a8.533 8.533 0 0 1 0 17.066zM401.067 221.865H230.4a8.533 8.533 0 0 1 0-17.066h170.667a8.533 8.533 0 0 1 0 17.066zM435.2 153.598h-42.667a8.533 8.533 0 0 1 0-17.066H435.2a8.533 8.533 0 0 1 0 17.066z" style="" fill="#ffffff" data-original="#ffffff"></path><path d="M315.733 68.265H42.667C19.14 68.265 0 87.405 0 110.931v170.667c0 23.526 19.14 42.667 42.667 42.667h17.067v76.8c0 7.07 8.537 11.105 13.997 6.556l100.027-83.356h141.977c23.526 0 42.667-19.14 42.667-42.667V110.931c-.002-23.526-19.142-42.666-42.669-42.666z" style="" fill="#ff9400" data-original="#c3c4c6" class="" opacity="1"></path><path d="M85.333 324.265H68.267c-23.526 0-42.667-19.14-42.667-42.667V110.931c0-23.526 19.14-42.667 42.667-42.667h-25.6C19.14 68.264 0 87.405 0 110.931v170.667c0 23.526 19.14 42.667 42.667 42.667h17.067v76.8c0 7.07 8.537 11.105 13.997 6.556l11.603-9.669v-73.687z" style="" fill="#d38213" data-original="#afb0b4" class="" opacity="1"></path><circle cx="102.4" cy="196.267" r="25.6" style="" fill="#ffffff" data-original="#ffffff"></circle><circle cx="179.2" cy="196.267" r="25.6" style="" fill="#ffffff" data-original="#ffffff"></circle><circle cx="256" cy="196.267" r="25.6" style="" fill="#ffffff" data-original="#ffffff"></circle><path d="M183.467 477.869h-46.933v-72.533c0-7.069-5.731-12.8-12.8-12.8-7.069 0-12.8 5.731-12.8 12.8v85.333c0 7.069 5.731 12.8 12.8 12.8h59.733c7.069 0 12.8-5.731 12.8-12.8s-5.732-12.8-12.8-12.8zM230.4 392.535c-7.069 0-12.8 5.731-12.8 12.8v85.333c0 7.069 5.731 12.8 12.8 12.8s12.8-5.731 12.8-12.8v-85.333c0-7.069-5.731-12.8-12.8-12.8zM354.621 393.451c-6.566-2.625-14.013.567-16.639 7.131l-22.249 55.622-22.249-55.622c-1.967-4.916-6.915-8.178-12.209-8.044-5.355.135-10.165 3.722-11.837 8.806a12.852 12.852 0 0 0 .278 8.746l34.133 85.333c1.923 4.809 6.706 8.046 11.885 8.046s9.962-3.238 11.885-8.046l34.133-85.333c2.626-6.565-.568-14.014-7.131-16.639zM448 477.869h-38.4v-17.067h21.333c7.069 0 12.8-5.731 12.8-12.8s-5.731-12.8-12.8-12.8H409.6v-17.067H448c7.069 0 12.8-5.731 12.8-12.8s-5.731-12.8-12.8-12.8h-51.2c-7.069 0-12.8 5.731-12.8 12.8v85.333c0 7.069 5.731 12.8 12.8 12.8H448c7.069 0 12.8-5.731 12.8-12.8s-5.731-12.799-12.8-12.799z" style="" fill="#5c5c5c" data-original="#f07b52" class="" opacity="1"></path></g></svg>';
-  const nextarrow =
-    '<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="40" height="40" x="0" y="0" viewBox="0 0 512 512" style="enable-background:new 0 0 512 512" xml:space="preserve" class=""><g><path d="M149.3 481c-3 0-6-1.1-8.2-3.4-4.6-4.6-4.6-11.9 0-16.5L346.2 256 141.1 50.9c-4.6-4.6-4.6-11.9 0-16.5s11.9-4.6 16.5 0l213.3 213.3c4.6 4.6 4.6 11.9 0 16.5L157.6 477.6c-2.3 2.3-5.3 3.4-8.3 3.4z" fill="#000000" opacity="1" data-original="#000000" class=""></path></g></svg>';
+// ─────────────────────────────────────────────────────────────────────────────
+// SVG Icons
+// ─────────────────────────────────────────────────────────────────────────────
+const ICON_HEADSET = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="32" height="32" fill="none" stroke="#ffffff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 18v-6a9 9 0 0 1 18 0v6"/><path d="M21 19a2 2 0 0 1-2 2h-1a2 2 0 0 1-2-2v-3a2 2 0 0 1 2-2h3z"/><path d="M3 19a2 2 0 0 0 2 2h1a2 2 0 0 0 2-2v-3a2 2 0 0 0-2-2H3z"/></svg>`;
 
-  const { colorConfig } = useSelector((state: RootState) => state.userInfo);
-  const navigation = useNavigation();
-  const color1 = `${colorConfig.primaryColor}10`;
-  const color2 = `${colorConfig.secondaryColor}10`;
+const ICON_PHONE = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07A19.5 19.5 0 0 1 4.69 13.5 19.79 19.79 0 0 1 1.62 4.86 2 2 0 0 1 3.59 2.68h3a2 2 0 0 1 2 1.72c.13.96.36 1.9.7 2.81a2 2 0 0 1-.45 2.11L7.91 10.27a16 16 0 0 0 6 6l.93-.93a2 2 0 0 1 2.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0 1 22 16.92z"/></svg>`;
 
-  const [supportData, setSuppportData] = useState([]);
-  const { get } = useAxiosHook();
+const ICON_MAIL = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>`;
+
+const ICON_CHAT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`;
+
+const ICON_CALENDAR = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>`;
+
+const ICON_FAQ = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>`;
+
+const ICON_ARROW_RIGHT = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#ffffff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────────────────────────────────────
+interface ActionCardProps {
+  title: string;
+  subtitle: string;
+  icon: string;
+  gradientColors: [string, string];
+  onPress: () => void;
+}
+
+interface NavCardProps {
+  title: string;
+  description: string;
+  icon: string;
+  gradientColors: [string, string];
+  onPress: () => void;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PulseDot — animated live indicator
+// ─────────────────────────────────────────────────────────────────────────────
+const PulseDot: React.FC<{ color: string }> = ({ color }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+  const opacity = useRef(new Animated.Value(0.7)).current;
 
   useEffect(() => {
-    const getData = async () => {
-      try {
-        const response = await get({ url: APP_URLS.Support_Information });
-        setSuppportData(response);
-        console.log(response);
-      } catch (error) {}
-    };
-
-    getData();
-  }, []);
-
-  const handlebackpress = () => {
-    navigation.goBack();
-  };
-
-  const phoneNumber = "7073056391"; // Replace this with the phone number you want to call
-
-  const openPhoneApp = () => {
-    Linking.openURL(`tel:${supportData.adminmobile}`);
-  };
-  const gmail = supportData.adminemail;
-  const opengmailURL = () => {
-    const email = gmail;
-    const subject = "To Subject";
-    const emailbody = "Test Body";
-    const mailTo = `mailto:${email}?subject=${subject}&body=${emailbody}`;
-
-    Linking.openURL(mailTo)
-      .then(() => console.log("Email app open successfully"))
-      .then((err) => console.error("Faild to open email : ", err));
-  };
-
-  const bankholiday = () => {
-    navigation.navigate("Bankholidays");
-  };
-  const faqspress = () => {
-    navigation.navigate("FAQs");
-  };
-  const Complaint = () => {
-    navigation.navigate("Complaint");
-  };
+    Animated.loop(
+      Animated.parallel([
+        Animated.sequence([
+          Animated.timing(scale, { toValue: 1.8, duration: 800, useNativeDriver: true }),
+          Animated.timing(scale, { toValue: 1, duration: 800, useNativeDriver: true }),
+        ]),
+        Animated.sequence([
+          Animated.timing(opacity, { toValue: 0, duration: 800, useNativeDriver: true }),
+          Animated.timing(opacity, { toValue: 0.7, duration: 800, useNativeDriver: true }),
+        ]),
+      ]),
+    ).start();
+  }, [opacity, scale]);
 
   return (
-    <View style={styles.main}>
-      <LinearGradient
-        style={styles.LinearGradient}
-        colors={[colorConfig.primaryColor, colorConfig.secondaryColor]}
-      >
-        <View>
-          <AppBar title={"Help & Support"} />
-
-          <View style={[styles.supporthelp, {}]}>
-            <View
-              style={[
-                styles.topcontainer,
-                {
-                  backgroundColor: colorConfig.secondaryColor,
-                },
-              ]}
-            >
-              <Text style={styles.supporttimestyle}>
-                {translate("Our Customer Care Timing")}
-              </Text>
-
-              <View style={styles.topitem}>
-                <View style={styles.helpimgstyle}>
-                  <SvgXml xml={help} />
-                </View>
-
-                <View style={styles.topright}>
-                  <Text allowFontScaling={false} style={styles.timestyle}>
-                    {translate("Cust Time")}
-                  </Text>
-                  <View style={styles.mondaytofriday}>
-                    <Text allowFontScaling={false} style={styles.dayTimeStyle}>
-                      {translate("Monday to Friday")}
-                    </Text>
-                    <Text allowFontScaling={false} style={styles.dayTimeStyle}>{translate("1030_AM_0740_PM")}</Text>
-                  </View>
-                  <View style={styles.everysaturday}>
-                    <Text allowFontScaling={false} style={styles.dayTimeStyle}>
-                      {translate("Every Saturday")}
-                    </Text>
-                    <Text allowFontScaling={false} style={styles.dayTimeStyle}>
-                      {translate("Every Sunday")}
-                    </Text>
-                  </View>
-                  <View style={styles.everysaturday}>
-                    <Text
-                      allowFontScaling={false}
-                      style={styles.saturdaySundayTim}
-                    >{translate("1000_AM_0200_PM")}</Text>
-                    <Text
-                      allowFontScaling={false}
-                      style={styles.saturdaySundayTim}
-                    >{translate("1000_AM_0200_PM")}</Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        <ScrollView>
-          <View style={styles.bodyStyle}>
-            <View style={styles.bodyopcitystyle}>
-              <View style={styles.bodybackgroundstyle}>
-                <View style={styles.fixmatgintopbottom}>
-                  <View style={styles.customernumber}>
-                    <View style={styles.holidaymaintextstyle}>
-                      <Text
-                        allowFontScaling={false}
-                        style={styles.ourCustomerheader}
-                      >
-                        {translate("Customer Care Number")}
-                      </Text>
-                      <TouchableOpacity
-                        onPress={openPhoneApp}
-                        activeOpacity={0.7}
-                      >
-                        <Text style={styles.countrynumber}>
-                          +91 {supportData.adminmobile}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-
-                    <TouchableOpacity
-                      onPress={openPhoneApp}
-                      activeOpacity={0.7}
-                      style={[
-                        styles.imgborder,
-                        {
-                          borderLeftColor: colorConfig.primaryColor,
-                          borderRightColor: colorConfig.secondaryColor,
-                          borderTopColor: colorConfig.primaryColor,
-                          borderBottomColor: colorConfig.secondaryColor,
-                        },
-                      ]}
-                    >
-                      <View style={styles.callimg}>
-                        <SvgXml xml={call} />
-                      </View>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.bodybackgroundstyle}>
-                <View style={styles.fixmatgintopbottom}>
-                  <View style={styles.customernumber}>
-                    <View style={styles.holidaymaintextstyle}>
-                      <Text style={styles.ourCustomerheader}>
-                        {translate("Support Email-ID")}
-                      </Text>
-                      <TouchableOpacity
-                        activeOpacity={0.7}
-                        onPress={opengmailURL}
-                      >
-                        <Text
-                          numberOfLines={1}
-                          ellipsizeMode="tail"
-                          style={styles.mailStyle}
-                        >
-                          {supportData.adminemail}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                    <View>
-                      <TouchableOpacity
-                        onPress={opengmailURL}
-                        activeOpacity={0.7}
-                        style={[
-                          styles.imgborder,
-                          {
-                            borderLeftColor: colorConfig.primaryColor,
-                            borderRightColor: colorConfig.secondaryColor,
-                            borderTopColor: colorConfig.primaryColor,
-                            borderBottomColor: colorConfig.secondaryColor,
-                          },
-                        ]}
-                      >
-                        <View style={styles.callimg}>
-                          <SvgXml xml={sendmail} />
-                        </View>
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.bodybackgroundstyle}>
-                <View style={styles.fixmatgintopbottom1}>
-                  <View style={styles.customernumber}>
-                    <View style={styles.holidaymaintextstyle}>
-                      <Text style={styles.ourCustomerheader}>
-                        {translate("Complaint Through Chat Service")}
-                      </Text>
-
-                      <Text
-                        numberOfLines={4}
-                        ellipsizeMode="tail"
-                        style={styles.holidayText}
-                      >
-                        {translate("Complaint")}
-                      </Text>
-                    </View>
-                    <View>
-                      <TouchableOpacity
-                        onPress={() => {
-                          Complaint();
-                        }}
-                        activeOpacity={0.7}
-                        style={[
-                          styles.imgborder,
-                          {
-                            borderLeftColor: colorConfig.primaryColor,
-                            borderRightColor: colorConfig.secondaryColor,
-                            borderTopColor: colorConfig.primaryColor,
-                            borderBottomColor: colorConfig.secondaryColor,
-                          },
-                        ]}
-                      >
-                        <View style={styles.callimg}>
-                          <SvgXml xml={chat} />
-                        </View>
-
-                        {/* </LinearGradient> */}
-                      </TouchableOpacity>
-                    </View>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.bodybackgroundstyle1}>
-                <View style={styles.bankholiday}>
-                  <TouchableOpacity activeOpacity={0.7} onPress={bankholiday}>
-                    <Text
-                      allowFontScaling={false}
-                      style={styles.ourCustomerheader}
-                    >
-                      {translate("Coming Bank Holidays")}
-                    </Text>
-
-                    <View style={styles.bankholidayflex}>
-                      <View style={styles.holidaymaintextstyle}>
-                        <Text
-                          numberOfLines={4}
-                          ellipsizeMode="tail"
-                          style={styles.holidayText}
-                        >
-                          {translate("Bank Holiday")}
-                        </Text>
-                      </View>
-                      <TouchableOpacity onPress={bankholiday}>
-                        <SvgXml xml={nextarrow} style={styles.nextimg} />
-                      </TouchableOpacity>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              </View>
-
-              <View style={styles.bodybackgroundstyle2}>
-                <View style={styles.bankholiday}>
-                  <TouchableOpacity activeOpacity={0.7} onPress={faqspress}>
-                    <Text
-                      allowFontScaling={false}
-                      style={styles.ourCustomerheader}
-                    >
-                      {translate("FAQs")}
-                    </Text>
-
-                    <View style={styles.bankholidayflex}>
-                      <View style={styles.holidaymaintextstyle}>
-                        <Text
-                          numberOfLines={4}
-                          ellipsizeMode="tail"
-                          style={styles.holidayText}
-                        >
-                          {translate("FAQ description")}
-                        </Text>
-                      </View>
-                      <TouchableOpacity onPress={faqspress}>
-                        <SvgXml xml={nextarrow} style={styles.nextimg} />
-                      </TouchableOpacity>
-                    </View>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </View>
-          </View>
-        </ScrollView>
-      </LinearGradient>
+    <View style={dotStyles.container}>
+      <Animated.View style={[dotStyles.ring, { backgroundColor: color, opacity, transform: [{ scale }] }]} />
+      <View style={[dotStyles.core, { backgroundColor: color }]} />
     </View>
   );
 };
 
-const styles = StyleSheet.create({
-  main: {
-    width: "100%",
-    height: "100%",
-  },
-  LinearGradient: {
-    height: "100%",
-    width: "100%",
-  },
-  helpimgstyle: {
-    justifyContent: "center",
-    alignItems: "center",
-    paddingTop: hScale(5),
-  },
-  topitem: {
+const dotStyles = StyleSheet.create({
+  container: { width: 10, height: 10, alignItems: "center", justifyContent: "center" },
+  ring: { position: "absolute", width: 10, height: 10, borderRadius: 5 },
+  core: { width: 6, height: 6, borderRadius: 3 },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ActionCard
+// ─────────────────────────────────────────────────────────────────────────────
+const ActionCard: React.FC<ActionCardProps> = ({ title, subtitle, icon, gradientColors, onPress }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () =>
+    Animated.spring(scale, { toValue: 0.97, speed: 20, bounciness: 4, useNativeDriver: true }).start();
+
+  const handlePressOut = () =>
+    Animated.spring(scale, { toValue: 1, speed: 20, bounciness: 4, useNativeDriver: true }).start();
+
+  return (
+    <TouchableOpacity
+      activeOpacity={1}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+    >
+      <Animated.View style={[cardStyles.card, { transform: [{ scale }] }]}>
+        {/* Left gradient icon */}
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={cardStyles.iconWrap}
+        >
+          <SvgXml xml={icon} />
+        </LinearGradient>
+
+        {/* Text block */}
+        <View style={cardStyles.textBlock}>
+          <Text style={cardStyles.cardTitle} allowFontScaling={false}>
+            {title}
+          </Text>
+          <Text style={cardStyles.cardSubtitle} numberOfLines={1} ellipsizeMode="tail" allowFontScaling={false}>
+            {subtitle}
+          </Text>
+        </View>
+
+        {/* Right arrow badge */}
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 1 }}
+          style={cardStyles.arrowBadge}
+        >
+          <SvgXml xml={ICON_ARROW_RIGHT} />
+        </LinearGradient>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+const cardStyles = StyleSheet.create({
+  card: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
-    paddingRight: wScale(12),
-    paddingLeft: wScale(5),
-    marginTop: hScale(-13),
+    backgroundColor: "#ffffff",
+    borderRadius: wScale(16),
+    paddingHorizontal: wScale(14),
+    paddingVertical: hScale(13),
+    marginBottom: hScale(10),
+    elevation: 4,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
   },
-  topright: { flex: 1, marginLeft: wScale(5) },
-  topcontainer: {
-    width: "100%",
-    borderRadius: 5,
-  },
-
-  backbuttonstyle: {
-    width: "10%",
-    justifyContent: "center",
+  iconWrap: {
+    width: wScale(48),
+    height: wScale(48),
+    borderRadius: wScale(14),
     alignItems: "center",
+    justifyContent: "center",
+    marginRight: wScale(14),
   },
-
-  supporttimestyle: {
-    fontSize: wScale(31),
-    fontWeight: "bold",
-    color: "#fff",
-    alignSelf: "center",
-  },
-  callimg: { padding: wScale(6) },
-  timestyle: {
-    color: "#fff",
-    textAlign: "justify",
-    fontSize: wScale(9.5),
-    borderBottomColor: "#fff",
-    borderBottomWidth: hScale(0.4),
-    paddingBottom: hScale(3),
-  },
-  dayTimeStyle: {
-    color: "#fff",
-    fontWeight: "bold",
+  textBlock: { flex: 1 },
+  cardTitle: {
     fontSize: wScale(13),
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: hScale(4),
   },
-  mondaytofriday: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    paddingBottom: hScale(3),
-    borderBottomColor: "#fff",
-    borderBottomWidth: hScale(0.4),
-  },
-  everysaturday: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  saturdaySundayTim: {
-    color: "#fff",
-    fontWeight: "bold",
+  cardSubtitle: {
     fontSize: wScale(12),
+    color: "#6b7280",
+    fontWeight: "400",
   },
-  bodyStyle: {
-    width: "100%",
-    height: "100%",
-  },
-
-  bodyopcitystyle: {
-    marginHorizontal: wScale(10),
-    backgroundColor: "rgba(255, 255, 255, 0.4)",
-    marginBottom: wScale(10),
-    paddingTop: wScale(10),
-    borderBottomLeftRadius: 5,
-    borderBottomRightRadius: 5,
-  },
-
-  bodybackgroundstyle: {
-    backgroundColor: "#fff",
-    marginLeft: wScale(10),
-    marginRight: wScale(10),
-    marginBottom: wScale(10),
-    borderRadius: 5,
-    // borderBottomLeftRadius: 5,
-    // borderBottomRightRadius: 5,
-    paddingTop: wScale(10),
-  },
-  bodybackgroundstyle1: {
-    backgroundColor: "#fff",
-    marginLeft: wScale(10),
-    marginRight: wScale(10),
-    marginBottom: wScale(10),
-    borderRadius: 5,
-    // paddingTop: 0,
-    paddingVertical: hScale(5),
-  },
-  bodybackgroundstyle2: {
-    backgroundColor: "#fff",
-    marginLeft: wScale(10),
-    marginRight: wScale(10),
-    marginBottom: wScale(10),
-    borderRadius: 5,
-    // paddingTop: 0,
-    paddingVertical: hScale(5),
-  },
-
-  supporthelp: {
-    marginLeft: wScale(10),
-    marginRight: wScale(10),
-    borderTopLeftRadius: 5,
-    borderTopRightRadius: 5,
-    backgroundColor: "rgba(255, 255, 255, 0.4)",
+  arrowBadge: {
+    width: wScale(34),
+    height: wScale(34),
+    borderRadius: wScale(10),
     alignItems: "center",
-  },
-  customernumber: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  buttonStyle: {
-    borderWidth: wScale(1),
-    padding: wScale(5),
-    borderRadius: 2,
-    width: wScale(100),
-    height: hScale(30),
     justifyContent: "center",
+    marginLeft: wScale(8),
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// NavCard
+// ─────────────────────────────────────────────────────────────────────────────
+const NavCard: React.FC<NavCardProps> = ({ title, description, icon, gradientColors, onPress }) => {
+  const scale = useRef(new Animated.Value(1)).current;
+
+  const handlePressIn = () =>
+    Animated.spring(scale, { toValue: 0.96, speed: 20, bounciness: 4, useNativeDriver: true }).start();
+
+  const handlePressOut = () =>
+    Animated.spring(scale, { toValue: 1, speed: 20, bounciness: 4, useNativeDriver: true }).start();
+
+  return (
+    <TouchableOpacity
+      activeOpacity={1}
+      onPress={onPress}
+      onPressIn={handlePressIn}
+      onPressOut={handlePressOut}
+      style={navStyles.touchable}
+    >
+      <Animated.View style={[navStyles.card, { transform: [{ scale }] }]}>
+        {/* Top accent */}
+        <LinearGradient
+          colors={gradientColors}
+          start={{ x: 0, y: 0 }}
+          end={{ x: 1, y: 0 }}
+          style={navStyles.accentBar}
+        />
+
+        <View style={navStyles.inner}>
+          {/* Icon */}
+          <LinearGradient
+            colors={gradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={navStyles.iconBadge}
+          >
+            <SvgXml xml={icon} />
+          </LinearGradient>
+
+          {/* Title + description */}
+          <Text style={navStyles.title} allowFontScaling={false} numberOfLines={2}>
+            {title}
+          </Text>
+          <Text style={navStyles.desc} allowFontScaling={false} numberOfLines={3}>
+            {description}
+          </Text>
+        </View>
+
+        {/* Chevron */}
+        <View style={navStyles.chevronWrap}>
+          <LinearGradient
+            colors={gradientColors}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 1 }}
+            style={navStyles.chevronBadge}
+          >
+            <SvgXml xml={ICON_ARROW_RIGHT} />
+          </LinearGradient>
+        </View>
+      </Animated.View>
+    </TouchableOpacity>
+  );
+};
+
+const navStyles = StyleSheet.create({
+  touchable: { flex: 1 },
+  card: {
+    flex: 1,
+    backgroundColor: "#ffffff",
+    borderRadius: wScale(18),
+    overflow: "hidden",
+    elevation: 4,
+    shadowColor: "#000000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    minHeight: hScale(170),
+  },
+  accentBar: {
+    height: hScale(5),
+    width: "100%",
+  },
+  inner: {
+    padding: wScale(12),
+    flex: 1,
+  },
+  iconBadge: {
+    width: wScale(44),
+    height: wScale(44),
+    borderRadius: wScale(12),
     alignItems: "center",
+    justifyContent: "center",
+    marginBottom: hScale(10),
   },
-  borderStyle: {
-    elevation: 1,
-    borderColor: "#000",
-    borderBottomWidth: wScale(0.5),
-    marginVertical: hScale(10),
+  title: {
+    fontSize: wScale(12),
+    fontWeight: "700",
+    color: "#111827",
+    marginBottom: hScale(6),
+    lineHeight: hScale(17),
   },
-  bankholiday: {
-    marginHorizontal: wScale(10),
-    marginBottom: hScale(5),
+  desc: {
+    fontSize: wScale(10),
+    color: "#9ca3af",
+    lineHeight: hScale(15),
   },
-  bankholidayflex: {
+  chevronWrap: {
+    position: "absolute",
+    bottom: wScale(12),
+    right: wScale(12),
+  },
+  chevronBadge: {
+    width: wScale(26),
+    height: wScale(26),
+    borderRadius: wScale(8),
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// TimingRow
+// ─────────────────────────────────────────────────────────────────────────────
+interface TimingRowProps {
+  day: string;
+  time: string;
+  isLast?: boolean;
+}
+
+const TimingRow: React.FC<TimingRowProps> = ({ day, time, isLast }) => (
+  <View>
+    <View style={timingStyles.row}>
+      <View style={timingStyles.badge}>
+        <Text style={timingStyles.badgeText} allowFontScaling={false}>{day}</Text>
+      </View>
+      <Text style={timingStyles.timeText} allowFontScaling={false}>{time}</Text>
+    </View>
+    {!isLast && <View style={timingStyles.divider} />}
+  </View>
+);
+
+const timingStyles = StyleSheet.create({
+  row: {
     flexDirection: "row",
     justifyContent: "space-between",
-
     alignItems: "center",
+    paddingVertical: hScale(5),
   },
-  holidaymaintextstyle: {
+  badge: {
+    backgroundColor: "rgba(255,255,255,0.22)",
+    paddingHorizontal: wScale(10),
+    paddingVertical: hScale(3),
+    borderRadius: wScale(20),
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.3)",
+  },
+  badgeText: {
+    color: "#ffffff",
+    fontSize: wScale(10),
+    fontWeight: "600",
+  },
+  timeText: {
+    color: "rgba(255,255,255,0.92)",
+    fontSize: wScale(10),
+    fontWeight: "500",
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.15)",
+  },
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HelpAndSupport — Main Screen
+// ─────────────────────────────────────────────────────────────────────────────
+const HelpAndSupport: React.FC = () => {
+  const { colorConfig } = useSelector((state: RootState) => state.userInfo);
+  const navigation = useNavigation();
+  const [supportData, setSupportData] = useState<Record<string, string>>({});
+  const { get } = useAxiosHook();
+
+  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const slideAnim = useRef(new Animated.Value(hScale(20))).current;
+
+  useEffect(() => {
+    // Entrance animation
+    Animated.parallel([
+      Animated.timing(fadeAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      Animated.timing(slideAnim, { toValue: 0, duration: 500, useNativeDriver: true }),
+    ]).start();
+
+    // Fetch support info
+    const fetchData = async () => {
+      try {
+        const response = await get({ url: APP_URLS.Support_Information });
+        setSupportData(response);
+      } catch (_err) {
+        // silent fail
+      }
+    };
+    fetchData();
+  }, [fadeAnim, get, slideAnim]);
+
+  const handleCall = () => {
+    if (supportData.adminmobile) {
+      Linking.openURL(`tel:${supportData.adminmobile}`);
+    }
+  };
+
+  const handleEmail = () => {
+    if (supportData.adminemail) {
+      const uri = `mailto:${supportData.adminemail}?subject=Support Request`;
+      Linking.openURL(uri).catch(() => {});
+    }
+  };
+
+  const handleComplaint = () => navigation.navigate("Complaint" as never);
+  const handleBankHoliday = () => navigation.navigate("Bankholidays" as never);
+  const handleFAQ = () => navigation.navigate("FAQs" as never);
+
+  return (
+    <View style={styles.root}>
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
+
+      {/* Full-screen gradient background */}
+      <LinearGradient
+        colors={[colorConfig.primaryColor, colorConfig.secondaryColor]}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
+        style={StyleSheet.absoluteFillObject}
+      />
+
+      {/* Decorative circles */}
+      <View style={[styles.circle, styles.circleTop, { backgroundColor: "rgba(255,255,255,0.08)" }]} />
+      <View style={[styles.circle, styles.circleBottom, { backgroundColor: "rgba(255,255,255,0.05)" }]} />
+
+      {/* App bar */}
+      <AppBar title={"Help & Support"} />
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* ── Hero Banner ── */}
+        <Animated.View
+          style={[
+            styles.heroBanner,
+            {
+              opacity: fadeAnim,
+              transform: [{ translateY: slideAnim }],
+            },
+          ]}
+        >
+          {/* Top row: icon + live label + subtext */}
+          <View style={styles.heroTopRow}>
+            <View style={styles.headsetWrap}>
+              <SvgXml xml={ICON_HEADSET} />
+            </View>
+            
+            <View style={styles.heroTextWrap}>
+              <View style={styles.liveRow}>
+                <PulseDot color={colorConfig.secondaryColor} />
+                <Text style={styles.liveLabel} allowFontScaling={false}>
+                  {"  "}{translate("Our Customer Care Timing")}
+                </Text>
+              </View>
+              <Text style={styles.heroCustTime} allowFontScaling={false}>
+                {translate("Cust Time")}
+              </Text>
+            </View>
+          </View>
+
+          {/* Divider */}
+          <View style={styles.heroDivider} />
+
+          {/* Timing rows */}
+          <TimingRow
+            day={translate("Monday to Friday")}
+            time={translate("1030_AM_0740_PM")}
+          />
+          <TimingRow
+            day={translate("Every Saturday")}
+            time={translate("1000_AM_0200_PM")}
+          />
+          <TimingRow
+            day={translate("Every Sunday")}
+            time={translate("1000_AM_0200_PM")}
+            isLast
+          />
+        </Animated.View>
+
+        {/* ── Content Sheet ── */}
+        <View style={styles.sheet}>
+
+          {/* Section: Contact Us */}
+          <Text style={styles.sectionLabel} allowFontScaling={false}>
+            CONTACT US
+          </Text>
+
+          <ActionCard
+            title={translate("Customer Care Number")}
+            subtitle={supportData.adminmobile ? `+91 ${supportData.adminmobile}` : "–"}
+            icon={ICON_PHONE}
+            gradientColors={["#667eea", "#764ba2"]}
+            onPress={handleCall}
+          />
+
+          <ActionCard
+            title={translate("Support Email-ID")}
+            subtitle={supportData.adminemail ?? "–"}
+            icon={ICON_MAIL}
+            gradientColors={["#f093fb", "#f5576c"]}
+            onPress={handleEmail}
+          />
+
+          <ActionCard
+            title={translate("Complaint Through Chat Service")}
+            subtitle={translate("Complaint")}
+            icon={ICON_CHAT}
+            gradientColors={["#4facfe", "#00f2fe"]}
+            onPress={handleComplaint}
+          />
+
+          {/* Spacer */}
+          <View style={styles.sectionGap} />
+
+          {/* Section: Quick Access */}
+          <Text style={styles.sectionLabel} allowFontScaling={false}>
+            {translate('QUICK ACCESS')}
+          </Text>
+
+          <View style={styles.navRow}>
+            <NavCard
+              title={translate("Coming Bank Holidays")}
+              description={translate("Bank Holiday")}
+              icon={ICON_CALENDAR}
+              gradientColors={[colorConfig.primaryColor, "#38f9d7"]}
+              onPress={handleBankHoliday}
+            />
+
+            <View style={styles.navGap} />
+
+            <NavCard
+              title={translate("FAQs")}
+              description={translate("FAQ description")}
+              icon={ICON_FAQ}
+              gradientColors={[colorConfig.secondaryColor, "#fee140"]}
+              onPress={handleFAQ}
+            />
+          </View>
+
+          <View style={styles.bottomPadding} />
+        </View>
+      </ScrollView>
+    </View>
+  );
+};
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Styles
+// ─────────────────────────────────────────────────────────────────────────────
+const styles = StyleSheet.create({
+  root: { },
+
+  // Decorative circles
+  circle: { position: "absolute", borderRadius: 999 },
+  circleTop: {
     width: wScale(280),
-    // backgroundColor: 'red'
+    height: wScale(280),
+    top: -wScale(90),
+    right: -wScale(60),
+  },
+  circleBottom: {
+    width: wScale(180),
+    height: wScale(180),
+    top: hScale(200),
+    left: -wScale(60),
   },
 
-  holidayText: {
-    color: "#000",
-    textAlign: "justify",
+  scrollContent: {
+    paddingBottom: hScale(24),
+  },
+
+  // Hero banner (glass card on gradient)
+  heroBanner: {
+    marginHorizontal: wScale(16),
+    marginTop: hScale(10),
+    marginBottom: hScale(0),
+    backgroundColor: "rgba(255,255,255,0.13)",
+    borderRadius: wScale(20),
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.25)",
+    padding: wScale(16),
+  },
+  heroTopRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: hScale(12),
+  },
+  headsetWrap: {
+    width: wScale(58),
+    height: wScale(58),
+    borderRadius: wScale(29),
+    backgroundColor: "rgba(255,255,255,0.18)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginRight: wScale(12),
+  },
+  heroTextWrap: { flex: 1 },
+  liveRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: hScale(4),
+  },
+  liveLabel: {
     fontSize: wScale(10),
-    marginTop: hScale(5),
+    color: "rgba(255,255,255,0.8)",
   },
-  nextimg: {
-    marginRight: wScale(-8.4),
+  heroCustTime: {
+    fontSize: wScale(13),
+    fontWeight: "600",
+    color: "#ffffff",
+    lineHeight: hScale(18),
   },
-  ourCustomerheader: {
-    color: "#000",
-    fontSize: wScale(16),
-    fontWeight: "bold",
+  heroDivider: {
+    height: 1,
+    backgroundColor: "rgba(255,255,255,0.2)",
+    marginBottom: hScale(8),
   },
-  imgborder: {
-    borderWidth: wScale(0.7),
-    borderRadius: wScale(5),
+
+  // White sheet
+  sheet: {
+    backgroundColor: "#f4f6fa",
+    borderTopLeftRadius: wScale(26),
+    borderTopRightRadius: wScale(26),
+    marginTop: hScale(10),
+    paddingTop: hScale(24),
+    paddingHorizontal: wScale(16),
   },
-  countrynumber: {
-    color: "#000",
-    fontSize: wScale(27),
-    marginTop: wScale(8),
+
+  sectionLabel: {
+    fontSize: wScale(11),
+    fontWeight: "700",
+    color: "#9ca3af",
+    letterSpacing: 1.0,
+    marginBottom: hScale(12),
+    marginLeft: wScale(2),
   },
-  mailStyle: {
-    color: "#000",
-    fontSize: wScale(21),
-    marginTop: wScale(8),
+  sectionGap: { height: hScale(22) },
+
+  navRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
   },
-  fixmatgintopbottom: {
-    marginHorizontal: wScale(10),
-    paddingBottom: hScale(10),
-  },
-  fixmatgintopbottom1: {
-    marginHorizontal: wScale(10),
-    paddingBottom: hScale(3),
-  },
+  navGap: { width: wScale(12) },
+  bottomPadding: { height: hScale(15) },
 });
 
 export default HelpAndSupport;

@@ -17,6 +17,7 @@ import { RadiantContext } from "./RadiantContext";
 import { useNavigation } from "@react-navigation/native";
 import RNFS from 'react-native-fs';
 import { KeyboardAwareScrollView } from "react-native-keyboard-aware-scroll-view";
+import { check, PERMISSIONS, RESULTS, openSettings, requestMultiple, request } from 'react-native-permissions';
 
 const UploadDocRadiant = () => {
   const { colorConfig } = useSelector((state: RootState) => state.userInfo);
@@ -424,74 +425,100 @@ const Formdata = async () => {
 
   };
 
-  const openImagePicker = async (type: 'camera' | 'gallery', documentType: string) => {
-    try {
-      if (Platform.OS === 'android') {
-        const cameraPerm = await PermissionsAndroid.requestMultiple([
-          PermissionsAndroid.PERMISSIONS.CAMERA,
-          PermissionsAndroid.PERMISSIONS.WRITE_EXTERNAL_STORAGE,
-          PermissionsAndroid.PERMISSIONS.READ_EXTERNAL_STORAGE,
-        ]);
 
-        const denied = Object.values(cameraPerm).includes(
-          PermissionsAndroid.RESULTS.DENIED
+const openImagePicker = async (type: 'camera' | 'gallery', documentType: string) => {
+  try {
+    if (Platform.OS === 'android') {
+      const apiLevel = parseInt(Platform.Version.toString(), 10);
+
+      // ✅ Camera permission check
+      const cameraStatus = await check(PERMISSIONS.ANDROID.CAMERA);
+
+      if (cameraStatus === RESULTS.BLOCKED) {
+        Alert.alert(
+          'Permission Required',
+          'Please allow camera access from settings',
+          [
+            { text: 'Cancel', style: 'cancel' },
+            { text: 'Open Settings', onPress: () => openSettings().catch(() => {}) },
+          ]
         );
-        if (denied) {
-          ToastAndroid.show('Permissions denied', ToastAndroid.SHORT);
-          return;
-        }
+        return;
       }
 
-      const options = {
-        mediaType: 'photo' as const,
-        quality: 0.5,
-        maxWidth: 1000,
-        maxHeight: 1000,
-        includeBase64: true, // Changed to true to get base64 directly
-      };
-
-      const callback = (response: any) => {
-        if (response.didCancel) {
-          console.log('User cancelled image picker');
-          return;
-        } else if (response.errorCode) {
-          console.log('Image Picker Error: ', response.errorCode);
-          ToastAndroid.show('Error selecting image', ToastAndroid.SHORT);
-          return;
+      if (cameraStatus !== RESULTS.GRANTED) {
+        // ✅ Android 12 aur below — storage bhi maango
+        if (apiLevel < 33) {
+          const results = await requestMultiple([
+            PERMISSIONS.ANDROID.CAMERA,
+            PERMISSIONS.ANDROID.READ_EXTERNAL_STORAGE,
+          ]);
+          const denied = Object.values(results).some(s => s !== RESULTS.GRANTED);
+          if (denied) {
+            ToastAndroid.show('Permissions denied', ToastAndroid.SHORT);
+            return;
+          }
+        } else {
+          // ✅ Android 13+ — sirf camera
+          const result = await request(PERMISSIONS.ANDROID.CAMERA);
+          if (result !== RESULTS.GRANTED) {
+            ToastAndroid.show('Camera permission denied', ToastAndroid.SHORT);
+            return;
+          }
         }
-
-        const asset = response?.assets?.[0];
-        if (!asset) return;
-
-        const base64String = `data:${asset.type};base64,${asset.base64}`;
-        const fileSize = Math.round((base64String.length * 3) / 4);
-        const maxSize = 500 * 1024; // 500KB
-
-        if (fileSize > maxSize) {
-          ToastAndroid.show(
-            `Image size ${(fileSize / 1024).toFixed(2)}KB exceeds 500KB limit`,
-            ToastAndroid.LONG
-          );
-          return;
-        }
-
-        // Update the document image and show preview
-        updateDocumentImage(documentType, base64String, asset.base64);
-        ToastAndroid.show(
-          `${getDocumentName(documentType)} uploaded successfully!`,
-          ToastAndroid.SHORT
-        );
-      };
-
-      type === 'camera'
-        ? launchCamera(options, callback)
-        : launchImageLibrary(options, callback);
-    } catch (error) {
-      console.error('Picker error:', error);
-      ToastAndroid.show('Failed to open picker', ToastAndroid.SHORT);
+      }
     }
-  };
 
+    const options = {
+      mediaType: 'photo' as const,
+      quality: 0.5,
+      maxWidth: 1000,
+      maxHeight: 1000,
+      includeBase64: true,
+      saveToPhotos: false,  // ✅ Add kiya
+    };
+
+    const callback = (response: any) => {
+      if (response.didCancel) {
+        console.log('User cancelled image picker');
+        return;
+      } else if (response.errorCode) {
+        console.log('Image Picker Error: ', response.errorCode);
+        ToastAndroid.show('Error selecting image', ToastAndroid.SHORT);
+        return;
+      }
+
+      const asset = response?.assets?.[0];
+      if (!asset) return;
+
+      const base64String = `data:${asset.type};base64,${asset.base64}`;
+      const fileSize = Math.round((base64String.length * 3) / 4);
+      const maxSize = 500 * 1024; // 500KB
+
+      if (fileSize > maxSize) {
+        ToastAndroid.show(
+          `Image size ${(fileSize / 1024).toFixed(2)}KB exceeds 500KB limit`,
+          ToastAndroid.LONG
+        );
+        return;
+      }
+
+      updateDocumentImage(documentType, base64String, asset.base64);
+      ToastAndroid.show(
+        `${getDocumentName(documentType)} uploaded successfully!`,
+        ToastAndroid.SHORT
+      );
+    };
+
+    type === 'camera'
+      ? launchCamera(options, callback)
+      : launchImageLibrary(options, callback);
+
+  } catch (error) {
+    console.error('Picker error:', error);
+    ToastAndroid.show('Failed to open picker', ToastAndroid.SHORT);
+  }
+};
 
   const handleReUpload = () => {
     updateDocumentImage(currentDocumentType, '', '');

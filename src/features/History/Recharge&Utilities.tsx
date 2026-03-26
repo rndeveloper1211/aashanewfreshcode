@@ -3,7 +3,6 @@ import {
   View, FlatList, Text, StyleSheet,
   TouchableOpacity, Image, StatusBar,
 } from "react-native";
-import SkeletonPlaceholder from "react-native-skeleton-placeholder";
 import useAxiosHook from "../../utils/network/AxiosClient";
 import { APP_URLS } from "../../utils/network/urls";
 import { useSelector } from "react-redux";
@@ -13,6 +12,7 @@ import { RootState } from "../../reduxUtils/store";
 import DateRangePicker from "../../components/DateRange";
 import NoDatafound from "../drawer/svgimgcomponents/Nodatafound";
 import AppBarSecond from "../drawer/headerAppbar/AppBarSecond";
+import SkeletonCard from "../../components/SkeletonCard"; // ✅ Alag component import
 
 // ─── Status config ────────────────────────────────────────────────────────────
 const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }> = {
@@ -41,79 +41,6 @@ type TxnItem = {
   Debitamount?:    string;
 };
 
-// ─── Skeleton card ────────────────────────────────────────────────────────────
-const SkeletonCard = ({ highlightColor }: { highlightColor: string }) => (
-  <SkeletonPlaceholder
-    borderRadius={16}
-    speed={1200}
-    backgroundColor="#F3F4F6"
-    highlightColor={highlightColor}
-  >
-    <SkeletonPlaceholder.Item
-      flexDirection="row"
-      alignItems="center"
-      backgroundColor="#fff"
-      borderRadius={16}
-      marginBottom={hScale(10)}
-      paddingVertical={hScale(12)}
-      paddingRight={wScale(14)}
-      overflow="hidden"
-    >
-      {/* Accent bar */}
-      <SkeletonPlaceholder.Item
-        width={4}
-        height={hScale(68)}
-        borderRadius={4}
-        marginRight={wScale(12)}
-      />
-
-      {/* Avatar */}
-      <SkeletonPlaceholder.Item
-        width={wScale(44)}
-        height={wScale(44)}
-        borderRadius={12}
-        marginRight={wScale(10)}
-      />
-
-      {/* Middle: operator + number + time */}
-      <SkeletonPlaceholder.Item flex={1}>
-        <SkeletonPlaceholder.Item
-          width="58%"
-          height={hScale(13)}
-          borderRadius={6}
-        />
-        <SkeletonPlaceholder.Item
-          width="42%"
-          height={hScale(12)}
-          borderRadius={6}
-          marginTop={hScale(7)}
-        />
-        <SkeletonPlaceholder.Item
-          width="28%"
-          height={hScale(10)}
-          borderRadius={6}
-          marginTop={hScale(6)}
-        />
-      </SkeletonPlaceholder.Item>
-
-      {/* Right: amount + pill */}
-      <SkeletonPlaceholder.Item alignItems="flex-end">
-        <SkeletonPlaceholder.Item
-          width={wScale(62)}
-          height={hScale(14)}
-          borderRadius={6}
-        />
-        <SkeletonPlaceholder.Item
-          width={wScale(52)}
-          height={hScale(22)}
-          borderRadius={20}
-          marginTop={hScale(8)}
-        />
-      </SkeletonPlaceholder.Item>
-    </SkeletonPlaceholder.Item>
-  </SkeletonPlaceholder>
-);
-
 // ─── Summary strip ────────────────────────────────────────────────────────────
 const SummaryStrip = ({
   transactions,
@@ -134,9 +61,9 @@ const SummaryStrip = ({
   }, [transactions]);
 
   const chips = [
-    { label: 'Total',       val: stats.count,   color: '#374151'   },
-    { label: 'Success',     val: stats.success, color: '#16A34A'   },
-    { label: 'Failed',      val: stats.failed,  color: '#DC2626'   },
+    { label: 'Total',       val: stats.count,       color: '#374151'    },
+    { label: 'Success',     val: stats.success,     color: '#16A34A'    },
+    { label: 'Failed',      val: stats.failed,      color: '#DC2626'    },
     { label: 'Success Amt', val: `₹${stats.total}`, color: primaryColor },
   ];
 
@@ -191,10 +118,8 @@ const TxnCard = React.memo(({
       onPress={onPress}
       activeOpacity={0.82}
     >
-      {/* Left accent bar */}
       <View style={[card.accentBar, { backgroundColor: st.color }]} />
 
-      {/* Avatar */}
       {item.hasThumbnail ? (
         <Image source={{ uri: item.thumbnailPath }} style={card.avatar} />
       ) : (
@@ -203,14 +128,12 @@ const TxnCard = React.memo(({
         </View>
       )}
 
-      {/* Middle */}
       <View style={card.mid}>
         <Text style={card.operator} numberOfLines={1}>{item.Operator_name}</Text>
         <Text style={card.number}>{item.Recharge_number}</Text>
         <Text style={[card.time, { color: accentColor }]}>{item.Reqesttime}</Text>
       </View>
 
-      {/* Right */}
       <View style={card.right}>
         <Text style={card.amount}>₹ {item.Recharge_amount}</Text>
         <View style={[card.pill, { backgroundColor: st.bg }]}>
@@ -223,14 +146,14 @@ const TxnCard = React.memo(({
 
 const card = StyleSheet.create({
   wrap: {
-    flexDirection:  'row',
-    alignItems:     'center',
-    backgroundColor: '#fff',
-    borderRadius:    16,
-    marginBottom:    hScale(8),
-    marginHorizontal: wScale(12),
-    paddingRight:    wScale(14),
-    paddingVertical: hScale(12),
+    flexDirection:    'row',
+    alignItems:       'center',
+    backgroundColor:  '#fff',
+    borderRadius:      16,
+    marginBottom:      hScale(8),
+    marginHorizontal:  wScale(12),
+    paddingRight:      wScale(14),
+    paddingVertical:   hScale(12),
     elevation: 2,
     shadowColor: '#000', shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.06, shadowRadius: 4,
@@ -252,12 +175,11 @@ const card = StyleSheet.create({
 
 // ─── Main screen ──────────────────────────────────────────────────────────────
 const RechargeUtilitisR = () => {
-  const { colorConfig }  = useSelector((s: RootState) => s.userInfo);
-  const { userId }       = useSelector((s: any) => s.userInfo);
-  const navigation       = useNavigation<any>();
-  const { get }          = useAxiosHook();
-  const primaryColor     = colorConfig.primaryColor;
-  // Shimmer highlight color derived from primary
+  const { colorConfig } = useSelector((s: RootState) => s.userInfo);
+  const { userId }      = useSelector((s: any) => s.userInfo);
+  const navigation      = useNavigation<any>();
+  const { get }         = useAxiosHook();
+  const primaryColor    = colorConfig.primaryColor;
   const shimmerHighlight = primaryColor + '30';
 
   const [transactions,   setTransactions]   = useState<TxnItem[]>([]);
@@ -300,7 +222,7 @@ const RechargeUtilitisR = () => {
     />
   ), [colorConfig.secondaryColor]);
 
-  // ── List header (summary strip) ───────────────────────────────────────────
+  // ── List header ───────────────────────────────────────────────────────────
   const ListHeader = useMemo(() => (
     !loading && transactions.length > 0
       ? <SummaryStrip transactions={transactions} primaryColor={primaryColor} />
@@ -326,6 +248,7 @@ const RechargeUtilitisR = () => {
       <View style={styles.body}>
         {loading ? (
           <View style={styles.skeletonWrap}>
+            {/* ✅ Imported SkeletonCard use ho raha hai */}
             {[...Array(6)].map((_, i) => (
               <SkeletonCard key={i} highlightColor={shimmerHighlight} />
             ))}
@@ -333,10 +256,7 @@ const RechargeUtilitisR = () => {
         ) : transactions.length === 0 ? (
           <View style={styles.emptyWrap}>
             <NoDatafound />
-            <Text style={styles.emptyTitle}>No transactions found</Text>
-            <Text style={styles.emptySub}>
-              Try adjusting the date range or status filter.
-            </Text>
+        
           </View>
         ) : (
           <FlatList
@@ -361,12 +281,11 @@ export default RechargeUtilitisR;
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
 const styles = StyleSheet.create({
-  root:        { flex: 1, backgroundColor: '#F9FAFB' },
-  body:        { flex: 1, paddingTop: hScale(10) },
-  list:        { paddingBottom: hScale(30), paddingTop: hScale(4) },
-  skeletonWrap:{ paddingHorizontal: wScale(12), paddingTop: hScale(4) },
-
-  emptyWrap:   { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: wScale(30) },
-  emptyTitle:  { fontSize: wScale(16), fontWeight: '700', color: '#374151', marginTop: hScale(16), textAlign: 'center' },
-  emptySub:    { fontSize: wScale(13), color: '#9CA3AF', marginTop: 6, textAlign: 'center', lineHeight: 20 },
+  root:         { flex: 1, backgroundColor: '#F9FAFB' },
+  body:         { flex: 1, paddingTop: hScale(10) },
+  list:         { paddingBottom: hScale(30), paddingTop: hScale(4) },
+  skeletonWrap: { paddingHorizontal: wScale(12), paddingTop: hScale(4) },
+  emptyWrap:    { flex: 1, justifyContent: 'center', alignItems: 'center', paddingHorizontal: wScale(30) },
+  emptyTitle:   { fontSize: wScale(16), fontWeight: '700', color: '#374151', marginTop: hScale(16), textAlign: 'center' },
+  emptySub:     { fontSize: wScale(13), color: '#9CA3AF', marginTop: 6, textAlign: 'center', lineHeight: 20 },
 });

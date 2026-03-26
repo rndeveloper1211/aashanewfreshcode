@@ -31,7 +31,7 @@ const UpdateScreen = () => {
   const [currentVersion, setCurrentVersion] = useState(APP_URLS.version);
   const [id, setid] = useState('')
   const [response, setResponse] = useState(null);
-  const [lastInstalled ,setlastInstalled] = useState(null)
+  const [lastInstalled, setlastInstalled] = useState(null)
   useEffect(() => {
     const fetchVersion = async () => {
       try {
@@ -46,89 +46,87 @@ const UpdateScreen = () => {
       }
     };
     fetchVersion();
-  //  getInstallTime()
+    //  getInstallTime()
   }, []);
 
-const getInstallTime = async () => {
-  const first = await DeviceInfo.getFirstInstallTime();
-  const last = await DeviceInfo.getLastUpdateTime();
+  const getInstallTime = async () => {
+    const first = await DeviceInfo.getFirstInstallTime();
+    const last = await DeviceInfo.getLastUpdateTime();
 
-  const firstTime = new Date(first).toLocaleString();
-  const lastTime = new Date(last).toLocaleString();
+    const firstTime = new Date(first).toLocaleString();
+    const lastTime = new Date(last).toLocaleString();
 
-  Alert.alert(
-    "App Install Info",
-    `First Install: ${firstTime}\nLast Update: ${lastTime}`
-  );
-};
-const [downloadProgress, setDownloadProgress] = useState(0);
-const [isDownloading, setIsDownloading] = useState(false);
-const handleUpdate = async () => {
-  try {
-    if (!response) {
-      Alert.alert("Error", "Version info not found");
-      return;
-    }
+    Alert.alert(
+      "App Install Info",
+      `First Install: ${firstTime}\nLast Update: ${lastTime}`
+    );
+  };
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [isDownloading, setIsDownloading] = useState(false);
+  const handleUpdate = async () => {
+    try {
+      if (!response) {
+        Alert.alert("Error", "Version info not found");
+        return;
+      }
 
-    if (response.isgoogle) {
-      const url = `${APP_URLS.playUrl}${id}`;
-      await Linking.openURL(url);
-    } else {
-      const apkUrl = `http://${APP_URLS.baseWebUrl}${APP_URLS.DownloadAPK}`;
-      
-      // Progress start karein
-      setIsDownloading(true);
-      setDownloadProgress(0);
+      if (response.isgoogle) {
+        const url = `${APP_URLS.playUrl}${id}`;
+        await Linking.openURL(url);
+      } else {
+        const apkUrl = `http://${APP_URLS.baseWebUrl}${APP_URLS.DownloadAPK}`;
 
-      const { config, android } = ReactNativeBlobUtil;
-      const downloadPath = `${ReactNativeBlobUtil.fs.dirs.DownloadDir}/app-update-${Date.now()}.apk`;
+        setIsDownloading(true);
+        setDownloadProgress(0);
 
-onReceiveNotification2({
-                  notification: {
-                    title: 'Downloading App Update',
-                    body: 'Please Wait',
-                  },
-                });
-      config({
-        fileCache: true,
-        addAndroidDownloads: {
-          useDownloadManager: true,
-          notification: true,
-          path: downloadPath,
-          description: 'Downloading App Update',
-          mime: 'application/vnd.android.package-archive',
-        },
-      })
-        .fetch('GET', apkUrl)
-        // YAHAN PROGRESS TRACK HOGA
-        .progress((received, total) => {
-          const percentage = Math.floor((received / total) * 100);
-          setDownloadProgress(percentage);
-
-            
-          console.log(`Download progress: ${percentage}%`);
-        })
-        .then((res) => {
-          setIsDownloading(false);
-          setDownloadProgress(100);
-         
-          android.actionViewIntent(
-            res.path(),
-            'application/vnd.android.package-archive'
-          );
-       
-        })
-        .catch((errorMessage) => {
-          setIsDownloading(false);
-          console.log("Download error:", errorMessage);
-          Alert.alert("Update Failed", "Could not download APK.");
+        onReceiveNotification2({
+          notification: {
+            title: 'Downloading App Update',
+            body: 'Please Wait',
+          },
         });
+
+        const downloadPath = `${ReactNativeBlobUtil.fs.dirs.CacheDir}/app-update-${Date.now()}.apk`;
+
+        ReactNativeBlobUtil.config({
+          //  trusty: true,          // ✅ bypasses SSL cert validation
+
+          fileCache: true,
+          path: downloadPath,     // ✅ direct path, no DownloadManager
+          appendExt: 'apk',
+        })
+          .fetch('GET', apkUrl)
+          .progress((received, total) => {        // ✅ now works correctly
+            if (total > 0) {
+              const percentage = Math.floor((received / total) * 100);
+              setDownloadProgress(percentage);
+              console.log(`Download progress: ${percentage}%`);
+            }
+          })
+          .then((res) => {
+            setIsDownloading(false);
+            setDownloadProgress(100);
+
+            // Install the APK
+            ReactNativeBlobUtil.android.actionViewIntent(
+              res.path(),
+              'application/vnd.android.package-archive'
+            );
+          })
+          .catch((errorMessage) => {
+            setIsDownloading(false);
+            console.log("Download error:", errorMessage);
+            const apkUrl = `http://${APP_URLS.baseWebUrl}${APP_URLS.DownloadAPK}`;
+           Linking.openURL( apkUrl);
+
+            Alert.alert("Update Failed", "Could not download APK.");
+          });
+      }
+    } catch (error) {
+      setIsDownloading(false);
+      Alert.alert(translate("Error"), translate("Something went wrong."));
     }
-  } catch (error) {
-    setIsDownloading(false);
-    Alert.alert(translate("Error"), translate("Something went wrong."));
-  }
-};
+  };
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <StatusBar barStyle="light-content" />
@@ -142,7 +140,7 @@ onReceiveNotification2({
             <View style={styles.iconShadow}>
               <View style={styles.iconWrapper}>
                 <UpdateSvg
-                progress={downloadProgress}
+                  progress={downloadProgress}
                   color2={colorConfig.primaryColor}
                   color={colorConfig.secondaryColor}
                 />
@@ -189,7 +187,7 @@ onReceiveNotification2({
         {/* Action Button Section */}
         <View style={styles.bottomSection}>
           <DynamicButton
-          onlong={getInstallTime}
+            onlong={getInstallTime}
             title={translate("Update Now")}
             onPress={handleUpdate}
           />

@@ -7,7 +7,7 @@ import { useSelector } from 'react-redux';
 import { APP_URLS } from '../utils/network/urls';
 import { useNavigation } from '../utils/navigation/NavigationService';
 import { ALERT_TYPE, Dialog } from 'react-native-alert-notification';
-import { openSettings } from 'react-native-permissions';
+import { check, openSettings, PERMISSIONS, request, RESULTS } from 'react-native-permissions';
 import { RootState } from '../reduxUtils/store';
 import { translate } from '../utils/languageUtils/I18n';
 
@@ -24,57 +24,78 @@ const AadharCardUpload = ({ route }) => {
   useEffect(() => {
     console.log(id)
   })
-  const handleImageSelect = (side) => {
-    const options = {
-      selectionLimit: 1,
-      mediaType: 'photo',
-      includeBase64: true,
-    };
 
-    const cameraOptions = {
-      ...options,
-      cameraType: 'back',
-    };
-    const handleResponse = (response) => {
-      if (response.didCancel) {
-        console.log('User cancelled image picker');
-      } else if (response.errorCode) {
-        console.log('ImagePicker Error: ', response.errorMessage);
-      } else {
-        const base64Image = response?.assets?.[0]?.base64;
-
-        if (base64Image) {
-          const source = { uri: `data:image/jpeg;base64,${base64Image}` };
-          if (side === 'front') {
-            setFrontImage(source);
-            setFrontImage64(base64Image);
-
-          } else {
-            setBackImage(source);
-            setBackImage64(base64Image);
-          }
-        } else {
-          console.log('Base64 image data not available');
-        }
-      }
-    };
-
+const handleImageSelect = async (side) => {
+  // ✅ Camera permission pehle check karo
+  const cameraStatus = await check(PERMISSIONS.ANDROID.CAMERA);
+  
+  if (cameraStatus === RESULTS.BLOCKED) {
     Alert.alert(
-      'Select Image',
-      'key_choosean_21',
+      'Permission Required',
+      'Please allow camera access from settings',
       [
-        {
-          text: 'Camera',
-          onPress: () => launchCamera(cameraOptions, handleResponse), // Open back camera
-        },
-        {
-          text: 'Gallery',
-          onPress: () => launchImageLibrary(options, handleResponse), // Open gallery
-        },
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open Settings', onPress: () => openSettings() },
       ]
     );
+    return;
+  }
+
+  if (cameraStatus !== RESULTS.GRANTED) {
+    const result = await request(PERMISSIONS.ANDROID.CAMERA);
+    if (result !== RESULTS.GRANTED) return;
+  }
+
+  // ✅ Options
+  const options = {
+    selectionLimit: 1,
+    mediaType: 'photo',
+    includeBase64: true,
   };
 
+  const cameraOptions = {
+    ...options,
+    cameraType: 'back',
+    saveToPhotos: false,  // ✅ Yeh add karo
+  };
+
+  const handleResponse = (response) => {
+    if (response.didCancel) {
+      console.log('User cancelled image picker');
+    } else if (response.errorCode) {
+      console.log('ImagePicker Error: ', response.errorMessage);
+    } else {
+      const base64Image = response?.assets?.[0]?.base64;
+      if (base64Image) {
+        const source = { uri: `data:image/jpeg;base64,${base64Image}` };
+        if (side === 'front') {
+          setFrontImage(source);
+          setFrontImage64(base64Image);
+        } else {
+          setBackImage(source);
+          setBackImage64(base64Image);
+        }
+      } else {
+        console.log('Base64 image data not available');
+      }
+    }
+  };
+
+  Alert.alert(
+    'Select Image',
+    'key_choosean_21',
+    [
+      {
+        text: 'Camera',
+        onPress: () => launchCamera(cameraOptions, handleResponse),
+      },
+      {
+        text: 'Gallery',
+        onPress: () => launchImageLibrary(options, handleResponse),
+      },
+    ]
+  );
+};
   const handleUpload = async () => {
     setIsUploading(true);
     uploadDoCxAdhar()

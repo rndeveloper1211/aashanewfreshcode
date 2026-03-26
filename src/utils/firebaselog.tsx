@@ -1,6 +1,8 @@
 import firestore from '@react-native-firebase/firestore';
 
 export const logToFirebase = async (eventName, data = {}) => {
+
+  return
   try {
 
     // console me bhi print ho

@@ -48,7 +48,7 @@ import ImageBottomSheet from "../../components/ImageBottomSheet";
 import { stateData } from "../../utils/stateData";
 import { colors } from "../../utils/styles/theme";
 import { FlashList } from "@shopify/flash-list";
-import { openSettings } from "react-native-permissions";
+import { check, openSettings, RESULTS, PERMISSIONS, request } from 'react-native-permissions';
 import { ALERT_TYPE, Dialog } from "react-native-alert-notification";
 import { translate } from "../../utils/languageUtils/I18n";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -454,35 +454,40 @@ const Profile: React.FC = () => {
   );
 
   // ── Navigate to Edit Profile ───────────────────────────────────────────────
-  const navigateToEditProfile = useCallback(async () => {
-    try {
-      const granted = await PermissionsAndroid.request(
-        PermissionsAndroid.PERMISSIONS.CAMERA,
-        {
-          title: translate("Camera Permission"),
-          message: translate("key_thisappn_102"),
-          buttonPositive: translate("OK"),
+
+const navigateToEditProfile = useCallback(async () => {
+  try {
+    // ✅ Pehle check karo
+    const status = await check(PERMISSIONS.ANDROID.CAMERA);
+
+    if (status === RESULTS.BLOCKED) {
+      Dialog.show({
+        type: ALERT_TYPE.WARNING,
+        title: translate('Permission Required'),
+        textBody: translate('key_pleasegra_85'),
+        button: translate('OK'),
+        onPressButton: () => {
+          Dialog.hide();
+          openSettings().catch(() => {});
         },
-      );
-      if (granted === PermissionsAndroid.RESULTS.GRANTED) {
-        await AsyncStorage.setItem("Profile_status", "un");
-        (navigation as any).navigate("EditProfile", {
-          profileData: profileDataToUse,
-        });
-      } else {
-        Dialog.show({
-          type: ALERT_TYPE.WARNING,
-          title: translate("Permission Required"),
-          textBody: translate("key_pleasegra_85"),
-          button: translate("OK"),
-          onPressButton: () => {
-            Dialog.hide();
-            openSettings().catch(() => {});
-          },
-        });
-      }
-    } catch (_) {}
-  }, [navigation, profileDataToUse]);
+      });
+      return;
+    }
+
+    // ✅ Granted nahi hai toh maango
+    if (status !== RESULTS.GRANTED) {
+      const result = await request(PERMISSIONS.ANDROID.CAMERA);
+      if (result !== RESULTS.GRANTED) return;
+    }
+
+    // ✅ Permission mili — navigate karo
+    await AsyncStorage.setItem('Profile_status', 'un');
+    (navigation as any).navigate('EditProfile', {
+      profileData: profileDataToUse,
+    });
+
+  } catch (_) {}
+}, [navigation, profileDataToUse]);
 
   // ── Gender Toggle ──────────────────────────────────────────────────────────
   const handleGenderChange = useCallback(() => {

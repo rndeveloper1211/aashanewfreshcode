@@ -49,7 +49,7 @@ const ICON_TINT: Record<string, string> = {
   "Purchase order Report":    "#FAF5FF",
   "Dispute Report":           "#FFF1F2",
   "Other Links":              "#F1F5F9",
-  "My Expense":               "#FFF7ED",
+  "Commission Report":             "#FFF7ED",
 };
 
 const ICON_COLOR: Record<string, string> = {
@@ -69,7 +69,7 @@ const ICON_COLOR: Record<string, string> = {
   "Purchase order Report":    "#6D28D9",
   "Dispute Report":           "#B91C1C",
   "Other Links":              "#475569",
-  "My Expense":               "#C2410C",
+  "Commission Report":               "#C2410C",
 };
 
 // ─── Static data ──────────────────────────────────────────────────────────────
@@ -90,7 +90,7 @@ const ROUTE_MAP: Record<string, string> = {
   "Purchase order Report":  "PurchaseOrderReport",
   "Dispute Report":         "DisputeReport",
   "Other Links":            "OtherLinks",
-  "My Expense":             "MyExpense",
+  "Commission Report":        "CommissionReport",
 };
 
 const getSvgComponent = (item: string) => {
@@ -113,7 +113,7 @@ const getSvgComponent = (item: string) => {
     case "Purchase order Report":   return <PurchaseOrderSvg {...props} />;
     case "Dispute Report":          return <DisputeSvg {...props} />;
     case "Other Links":             return <OtherLinksSvg {...props} />;
-    case "My Expense":              return <Paymentsvg {...props} />;
+    case "Commission Report":              return <Paymentsvg {...props} />;
     default:                        return null;
   }
 };
@@ -160,6 +160,7 @@ const AccReportScreen = () => {
     "Operator Commission",
     "Manage A/C",
     "Purchase order Report",
+    "Commission Report",
     ...(!IsDealer ? ["Other Links"] : []),
   ], [IsDealer]);
 
