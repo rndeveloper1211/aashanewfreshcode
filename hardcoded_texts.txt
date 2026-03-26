@@ -1,0 +1,229 @@
+!
+$`}
+%` : 'N/A'}
+*/} Click Me to Call Administrator Now
+*/} {/* Amount
+*/} {/* Email
+*/} {/* Environment (test = 2 / production = 0)
+*/} {/* Failure URL
+*/} {/* Firstname
+*/} {/* Phone
+*/} {/* Product Info
+*/} {/* Salt
+*/} {/* Success URL
+*/} {/* Transaction ID
+*/} {/* User Credentials
+*/} {/* handleNavigation('APIScreen', { merchantKey, salt, isSandbox, environment, productInfo, amount, txnId, firstName, phone, email, surl, furl, userCredentials, }) } /> */} {/* handleNavigation('CardsScreen', { merchantKey, salt, isSandbox, environment, productInfo, amount, txnId, firstName, phone, email, surl, furl, userCredentials, }) } /> */} { handleNavigation('UPI', { merchantKey, salt, isSandbox, environment, productInfo, amount, txnId, firstName, phone, email, surl, furl, userCredentials , }) }} styleoveride= /> ------------------------------------------------------------
++
+. `)}
+/ $`}
+// //
+0 */}
+0 ? PRIMARY : '#94A3B8' }]}>⌕
+3. Face authentication is disabled on the bank side for 2FA verification.
+:
+= 12 ? colorConfig.primaryColor : color1 }, ]} > (Submit)
+AEPS Account
+AEPS Services
+Aadhaar Enabled Payment System
+Aadhaar Enabled Payment System linked bank account
+Aadhar Number:
+AccessRestricted
+Account Details
+Action is Required
+Add Beneficiary
+Agency :
+Amount
+Amount in Words:
+Amount: ₹
+App Version : V
+Are you sure to swap ?`}
+Available Version: V
+Bal
+Bank Details
+Bank Name:
+Bank RRN:
+Bank Reference No:
+CONTACT US
+CR ₹
+Choose a Service
+City Name
+Click 'Scan Finger' and place your finger on the scanner.
+Comm ₹
+Connect your Biometric Device (Mantra, Morpho, etc.) via OTG.
+Consumer Aadhaar
+Contact No.:
+Contact information is updated till
+Customer Scratch Code -
+DR ₹
+Date & Time:
+Date:
+Days
+Designation:
+Device ID:
+Distributor Id:
+Downloading... %
+Due Date:
+E
+E-KYC is Not Completed
+Email ID:
+Enter 6-digit OTP sent to your registered mobile
+Face
+Face Auth
+Follow these steps:
+From Date:
+Go ToPurchase
+Hi , Please Complete Your Video KYC Now!
+IFSC Code
+IFSC Code:
+Lat: | Lng:
+Latitude:
+Longitude:
+Message :
+Message:
+Mobile
+Mobile Number:
+Mode
+Monthly Payout Summary
+My Own Pin Code -
+Name:
+Net T/F
+Next
+No banks found
+No transactions found
+Note:
+Note:-
+OTP Sent to Mobile Number or Email ` */}
+Operator:
+PAY NOW ₹
+PROCEED
+PROTECTED BY SECURITY SYSTEM · v2.0
+Payee:
+Paying
+Payment Mode
+Pickup Time:
+Please complete your verification to enable all AEPS features.
+Please match the number of Notes
+Please wait...
+Post Balance: ₹
+Pre Balance: ₹
+Proceed
+Profile Picture Not Found - click for upload new
+Qualification #
+ReQ No.
+Receipt of
+Recharge Amount:
+Ref No:
+Remain Amount: ₹
+Remaining Receipts:
+Remaining: ₹
+Request Time
+Retailer Info:
+SECURITY ALERT
+Select your device model from the dropdown below.
+Sender
+Sender Name:
+Sender:
+Share
+Sorry
+Spent: ₹
+State Bank Of India ₹.00
+Status:
+TXN ID
+To Date:
+Tokens No:
+Total Receipt
+Transaction
+Transaction Date:
+Transaction Status:
+Try a different search term
+Try adjusting the date range or filters.
+Try changing the date range or status filter.
+UTR No:
+Upload
+V
+VPA:
+Your Version: V
+Your own Pin Code as per your documents is given above. If you can work in other Pin Code areas also, please add up to 4 Pin Codes by clicking on "Add New".
+Your wallet balance is short by ₹
+\n$\n$\nMain Balance: $ \nCredit: $`}
+` : ''}
+` : 'N/A'}
+` : `₹ $`)}
+`)}
+`}
+call function name:
+dgsdfg
+e:
+id:
+item?.[idKey]?.toString() || index.toString()} contentContainerStyle=} ListEmptyComponent={ No results found for ""
+key_noteamo_58 ₹ .0
+navigation.goBack()} > Cancel
+seconds`)}
+seconds`}
+setAccnumhint2(text)} />
+setAccnumhint2(text)} /> info
+setAmount(text)} /> */} {/* { validateFields(); }}> Proceed
+setAmount(text)} /> { validateFields(); }}> Proceed
+setDistrictModalVisible(true)} >
+setStateModalVisible(false)} > ( handleStateSelect(item)} >
+setUpiDetails()} /> PIN:
+setUpiDetails()} /> Sender Number:
+setUpiDetails()} /> Transfer
+setconsumerNo(text)} /> */} { setconsumerNo(text); if (text.length >= 5) { setIsinfo(true) } else { setIsinfo(false) } }} /> {/* {isInfo && ( { billInfo(); setBottomSheetVisible(true); }}> Info
+setconsumerNo(text)} /> {isInfo && ( { billInfo(); setBottomSheetVisible(true); }}> Info
+{ handleOtpChange(index, value); if (value !== "" && index 0) { inputRefs.current[index - 1].current.focus(); } }} /> ))} {translate( "key_enterotp_34", )}
+{ handleOtpChange(index, value); if (value !== "" && index 0) { inputRefs.current[index - 1]?.current?.focus(); } }} /> ))}
+{ registeredmobileotp(index, value); if (value !== "" && index 0) { mobileinputRefs.current[index - 1].current.focus(); } }} /> ))}
+{ setChatText(text); setIsComposing(text.length > 0); }} multiline /> Send
+{!remitterOtp && ( Enter Remitter Name
+{(activeForm === 'bank' || activeForm === 'wallet') && ( { loading2 ? :Submit
+{(transactionCount !== denomData.length && transactionCount !== undefined) ? 'Verify & Next' : (item.OtpDay === '' || transactionCount === undefined ? 'Send OTP to Customer Point' : 'Continue')}
+{(transactionCount !== denomData.length) ? 'Verify & Fill Next Data' : (item.OtpDay === '' ? 'Send OTP to Customer Point' : 'Continue')}
+{/*
+{adminData && adminData.firmName ? adminData.firmName : APP_URLS.AppName}
+{balanceInfo?.posremain != null ? balanceInfo.posremain.toString() : "0.00"}
+{balanceInfo?.posremain != null ? balanceInfo.remainbal.toString() : "0.00"}
+{docpending ? 'Your Document Verification' : ceRegPending ? 'Your C E Registration' : cePointsPending ? 'Waiting For The Location' : 'Your Request'}
+{isLoading ? ( ) : ( Submit
+{item.Mode !== 'BARRELCASHDEPOSIT' && item.Mode !== 'ONLINETRANSFER' ? item.ClientName : 'Radiant Cash Management'}
+{item.Particular === '26 JAN, 15 AUG, 2 OCT, Diwali, Holi' && Leave
+{item.status?.toLowerCase() === "success" ? "Transaction Amount Paid Successfully" : item.status?.toLowerCase() === "pending" ? "Transaction is in Queue / Pending" : item.status?.toLowerCase() === "failed" ? "Transaction has Failed" : ""}
+{item?.phoneNumbers?.length > 0 ? item.phoneNumbers[0]?.number : ""}
+{new Date(item.Date).toLocaleString("en-IN", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit", })}
+{remitter === null ? '0000' : `Consume limit: $, Remain limit: $, Per txn limit: $`}
+{translate( "key_beloware_18", )}
+{translate( "key_dearbusin_27", )}
+{translate( "key_dearuser_30", )}
+{translate( "key_dearuser_31", )}
+{translate( "key_loginaddr_53", )}
+{translate( "key_otpwillb_59", )}
+{translate( "key_regenerate_88", )}
+{validate && Serial number is required
+} setIsCalendarVisible(false)} > setIsBankVisible(false)} containerStyle= >
+•
+‹
+›
+←
+↑ Share
+→
+↩ Refund
+⌄
+●
+✓
+🆔 ID No:
+🎭 Role:
+🏦
+💰 Comm 5001-10000:
+💰 minamount:
+💳
+📅
+📅 insertdate:
+📊 Commission Report
+📍
+📧 Email:
+🔄 Remain Pre:
+🔔
+🔗
+🗑
+＋
