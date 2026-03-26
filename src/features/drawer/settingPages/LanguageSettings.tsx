@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, ScrollView, ActivityIndicator } from 'react-native';
+import {
+  View, Text, TouchableOpacity, StyleSheet,
+  ScrollView, ActivityIndicator, Animated,
+} from 'react-native';
 import AppBarSecond from '../headerAppbar/AppBarSecond';
 import LenguageSvg from '../svgimgcomponents/Lenguageimg';
 import { hScale, wScale } from '../../../utils/styles/dimensions';
 import { useSelector } from 'react-redux';
 import { RootState } from '../../../reduxUtils/store';
-import DynamicButton from '../button/DynamicButton';
 import { Dialog, ALERT_TYPE } from 'react-native-alert-notification';
 import { useDispatch } from 'react-redux';
 import CheckSvg from '../svgimgcomponents/CheckSvg';
@@ -13,223 +15,346 @@ import { setLocale, translate } from '../../../utils/languageUtils/I18n';
 import { setAppLanguage } from '../../../reduxUtils/store/userInfoSlice';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-const LanguageSettings = () => {
-    const { colorConfig, appLanguage } = useSelector((state: RootState) => state.userInfo);
-    const [selectedLanguageIndex, setSelectedLanguageIndex] = useState(0);
-    const dispatch = useDispatch();
-    const saveRef = useRef(null);
-    const [loading, setLoading] = useState(false);
+const FLAG_EMOJIS = {
+  en: '🇬🇧',
+  hi: '🇮🇳',
+  bn: '🇧🇩',
+  gj: '🇮🇳',
+  kn: '🇮🇳',
+  mh: '🇮🇳',
+  tn: '🇮🇳',
+  tl: '🇮🇳',
+};
 
-    const languages = [
-      { title: 'English (India)', code: 'en' },
-      { title: 'Hindi (हिंदी)', code: 'hi' },
-      { title: 'Bengali (বাংলা)', code: 'bn' },
-      { title: 'Gujarati (ગુજરાતી)', code: 'gj' },
-      { title: 'Kannada (ಕನ್ನಡ)', code: 'kn' },
-      { title: 'Marathi (मराठी)', code: 'mh' },
-      { title: 'Tamil (தமிழ்)', code: 'tn' },
-      { title: 'Telugu (తెలుగు)', code: 'tl' },
-    ];
-  
-    // Load saved language on component mount
-    useEffect(() => {
-      const loadSavedLanguage = async () => {
-        try {
-          const savedLang = await AsyncStorage.getItem('@app_language');
-          if (savedLang) {
-            const index = languages.findIndex(lang => lang.code === savedLang);
-            if (index !== -1) {
-              setSelectedLanguageIndex(index);
-            }
-          }
-        } catch (error) {
-          console.error('Error loading language:', error);
-        }
-      };
-      
-      loadSavedLanguage();
-    }, []);
-  
-    // Update when appLanguage changes
-    useEffect(() => {
-      if (appLanguage) {
-        const index = languages.findIndex((language) => language.code === appLanguage);
-        if (index !== -1) setSelectedLanguageIndex(index);
-      }
-    }, [appLanguage]);
-  
-    const changeLanguage = (index: number) => {
-      setTimeout(() => {
-        if (saveRef.current) {
-          saveRef.current.scrollToEnd({ animated: true });
-        }
-      }, 100);
-      setSelectedLanguageIndex(index);
-    };
-  
-    const BtnPress = async () => {
-      setLoading(true);
-      
+const LanguageSettings = () => {
+  const { colorConfig, appLanguage } = useSelector((state: RootState) => state.userInfo);
+  const [selectedLanguageIndex, setSelectedLanguageIndex] = useState(0);
+  const dispatch = useDispatch();
+  const saveRef = useRef(null);
+  const [loading, setLoading] = useState(false);
+
+  // Per-item animated scales
+  const scaleAnims = useRef(
+    Array.from({ length: 8 }, () => new Animated.Value(1))
+  ).current;
+
+  const languages = [
+    { title: 'English (India)',    code: 'en' },
+    { title: 'Hindi (हिंदी)',       code: 'hi' },
+    { title: 'Bengali (বাংলা)',     code: 'bn' },
+    { title: 'Gujarati (ગુજરાતી)', code: 'gj' },
+    { title: 'Kannada (ಕನ್ನಡ)',    code: 'kn' },
+    { title: 'Marathi (मराठी)',    code: 'mh' },
+    { title: 'Tamil (தமிழ்)',      code: 'tn' },
+    { title: 'Telugu (తెలుగు)',    code: 'tl' },
+  ];
+
+  useEffect(() => {
+    const loadSavedLanguage = async () => {
       try {
-        const selectedLang = languages[selectedLanguageIndex].code;
-        
-        // Save to AsyncStorage first
-        await AsyncStorage.setItem('@app_language', selectedLang);
-        
-        // Then update i18n and Redux
-        await setLocale(selectedLang);
-        dispatch(setAppLanguage(selectedLang));
-        
-        Dialog.show({
-          type: ALERT_TYPE.SUCCESS,
-          title: 'SUCCESS',
-          textBody: 'Your Language Is Changed Successfully',
-          button: 'OK',
-          onPressButton: () => {
-            Dialog.hide();
-          },
-        });
+        const savedLang = await AsyncStorage.getItem('@app_language');
+        if (savedLang) {
+          const index = languages.findIndex(lang => lang.code === savedLang);
+          if (index !== -1) setSelectedLanguageIndex(index);
+        }
       } catch (error) {
-        console.error('Error changing language:', error);
-        Dialog.show({
-          type: ALERT_TYPE.DANGER,
-          title: 'ERROR',
-          textBody: 'Failed to change language',
-          button: 'OK',
-        });
-      } finally {
-        setLoading(false);
+        console.error('Error loading language:', error);
       }
     };
-    
-    return (
-        <View style={styles.main}>
-            <AppBarSecond
-                title="Application {App} Language"
-                actionButton={undefined}
-                onActionPress={undefined}
-                onPressBack={undefined}
-                titlestyle={undefined}
-            />
-            <View style={styles.imgs1}>
-                <LenguageSvg />
-            </View>
-            <View style={[styles.selectedLanguageContainer]}>
-                <Text style={[styles.heading2,{}]}>{`${translate('Selected Language')}`} </Text>
-                <Text style={[styles.heading2, { color: colorConfig.secondaryColor }]}>{languages[selectedLanguageIndex].title}</Text>
-            </View>
-            <ScrollView ref={saveRef}>
-                <View style={styles.container}>
-                    <View style={styles.languageContainer}>
-                        <View style={styles.languageList}>
-                            {languages.map((language, index) => (
-                                <TouchableOpacity 
-                                    key={index} 
-                                    onPress={() => changeLanguage(index)}
-                                    style={[styles.languageButton,]}
-                                >
-                                    <View style={[styles.languageEmojiContainer, index === selectedLanguageIndex && { backgroundColor: colorConfig.secondaryColor }]}>
-                                        {index === selectedLanguageIndex && <CheckSvg />}
-                                    </View>
-                                    <Text style={[styles.languageText, language.title === 'Telugu (తెలుగు)' && styles.hideborder]}>
-                                        {language.title}
-                                    </Text>
-                                </TouchableOpacity>
-                            ))}
-                            <View style={{ marginBottom: 10 }} />
-                            <DynamicButton 
-                                title={loading ? <ActivityIndicator size={'large'} color={colorConfig.labelColor} /> : `${translate('Save')}`} 
-                                onPress={BtnPress} 
-                            />
-                        </View>
-                    </View>
-                </View>
-            </ScrollView>
+    loadSavedLanguage();
+  }, []);
+
+  useEffect(() => {
+    if (appLanguage) {
+      const index = languages.findIndex((language) => language.code === appLanguage);
+      if (index !== -1) setSelectedLanguageIndex(index);
+    }
+  }, [appLanguage]);
+
+  const changeLanguage = (index: number) => {
+    // Bounce animation on selected item
+    Animated.sequence([
+      Animated.timing(scaleAnims[index], { toValue: 0.93, duration: 80, useNativeDriver: true }),
+      Animated.spring(scaleAnims[index], { toValue: 1, useNativeDriver: true, tension: 200, friction: 8 }),
+    ]).start();
+
+    setTimeout(() => {
+      if (saveRef.current) saveRef.current.scrollToEnd({ animated: true });
+    }, 100);
+    setSelectedLanguageIndex(index);
+  };
+
+  const BtnPress = async () => {
+    setLoading(true);
+    try {
+      const selectedLang = languages[selectedLanguageIndex].code;
+      await AsyncStorage.setItem('@app_language', selectedLang);
+      await setLocale(selectedLang);
+      dispatch(setAppLanguage(selectedLang));
+      Dialog.show({
+        type: ALERT_TYPE.SUCCESS,
+        title: 'SUCCESS',
+        textBody: 'Your Language Is Changed Successfully',
+        button: 'OK',
+        onPressButton: () => { Dialog.hide(); },
+      });
+    } catch (error) {
+      console.error('Error changing language:', error);
+      Dialog.show({
+        type: ALERT_TYPE.DANGER,
+        title: 'ERROR',
+        textBody: 'Failed to change language',
+        button: 'OK',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <View style={styles.main}>
+      <AppBarSecond
+        title="Application {App} Language"
+        actionButton={undefined}
+        onActionPress={undefined}
+        onPressBack={undefined}
+        titlestyle={undefined}
+      />
+
+      <ScrollView
+        ref={saveRef}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Header illustration + selected badge */}
+        <View style={styles.heroSection}>
+          <View style={[styles.iconCircle, { backgroundColor: `${colorConfig.secondaryColor}18` }]}>
+            <LenguageSvg />
+          </View>
+          <Text style={styles.heroTitle}>{translate('Choose Language')}</Text>
+          <Text style={styles.heroSub}>
+            {translate('Selected Language')}
+          </Text>
+
+          {/* Active language badge */}
+          <View style={[styles.activeBadge, { backgroundColor: colorConfig.secondaryColor }]}>
+            <Text style={styles.activeBadgeFlag}>
+              {FLAG_EMOJIS[languages[selectedLanguageIndex].code]}
+            </Text>
+            <Text style={styles.activeBadgeText}>
+              {languages[selectedLanguageIndex].title}
+            </Text>
+          </View>
         </View>
-    );
+
+        {/* Language list card */}
+        <View style={styles.card}>
+          {languages.map((language, index) => {
+            const isSelected = index === selectedLanguageIndex;
+            return (
+              <Animated.View key={index} style={{ transform: [{ scale: scaleAnims[index] }] }}>
+                <TouchableOpacity
+                  onPress={() => changeLanguage(index)}
+                  activeOpacity={0.75}
+                  style={[
+                    styles.langRow,
+                    isSelected && [styles.langRowActive, { backgroundColor: `${colorConfig.secondaryColor}12`, borderColor: colorConfig.secondaryColor }],
+                    index === languages.length - 1 && { borderBottomWidth: 0 },
+                  ]}
+                >
+                  {/* Flag */}
+                  <View style={styles.flagBox}>
+                    <Text style={styles.flagEmoji}>{FLAG_EMOJIS[language.code]}</Text>
+                  </View>
+
+                  {/* Label */}
+                  <Text style={[
+                    styles.langText,
+                    isSelected && { color: colorConfig.secondaryColor, fontWeight: '700' },
+                  ]}>
+                    {language.title}
+                  </Text>
+
+                  {/* Check indicator */}
+                  <View style={[
+                    styles.checkCircle,
+                    isSelected
+                      ? { backgroundColor: colorConfig.secondaryColor, borderColor: colorConfig.secondaryColor }
+                      : { borderColor: '#D1D5DB' },
+                  ]}>
+                    {isSelected && <CheckSvg />}
+                  </View>
+                </TouchableOpacity>
+              </Animated.View>
+            );
+          })}
+        </View>
+
+        {/* Save Button */}
+        <TouchableOpacity
+          style={[styles.saveBtn, { backgroundColor: colorConfig.secondaryColor }]}
+          onPress={BtnPress}
+          activeOpacity={0.85}
+          disabled={loading}
+        >
+          {loading
+            ? <ActivityIndicator size="small" color="#fff" />
+            : (
+              <View style={styles.saveBtnInner}>
+                <Text style={styles.saveBtnText}>{translate('Save')}</Text>
+                <Text style={styles.saveBtnArrow}>→</Text>
+              </View>
+            )
+          }
+        </TouchableOpacity>
+
+        <View style={{ height: hScale(32) }} />
+      </ScrollView>
+    </View>
+  );
 };
 
 const styles = StyleSheet.create({
-    main: { flex: 1 },
-    container: {
-        paddingHorizontal: wScale(10),
-        flex: 1,
-        marginBottom: hScale(0),
-    },
-    languageContainer: {
-        alignItems: 'center',
-        justifyContent: 'center',
-        paddingBottom: hScale(8),
-    },
-    heading: {
-        fontSize: wScale(22),
-        fontWeight: 'bold',
-        color: '#fff',
-        width: '100%',
-        paddingVertical: hScale(8),
-        textAlign: 'center',
-        textTransform: 'capitalize'
-    },
-    selectedLanguageContainer: {
-        marginBottom: hScale(5),
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#fff',
-        paddingVertical: hScale(8),
-        marginTop: hScale(8),
-        borderRadius: 20
-    },
-    heading2: {
-        fontSize: wScale(20),
-        fontWeight: 'bold',
-        color: '#000',
-    },
-    languageText: {
-        textTransform: 'capitalize',
-        fontSize: wScale(20),
-        color: '#000',
-        paddingTop: hScale(16),
-        flex: 1,
-        paddingBottom: hScale(18),
-        borderBottomColor: "rgba(0,0,0,.4)",
-        borderBottomWidth: wScale(.4),
-    },
-    hideborder: {
-        borderBottomWidth: wScale(0),
-    },
-    languageList: {
-        width: '100%',
-        paddingHorizontal: wScale(8),
-        paddingTop: hScale(8)
-    },
-    languageButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    languageEmojiContainer: {
-        marginRight: wScale(20),
-        borderWidth: wScale(.5),
-        borderRadius: 25,
-        height: wScale(30),
-        width: wScale(30),
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    languageEmoji: {
-        fontSize: wScale(19),
-        borderRadius: 25,
-        alignItems: 'center',
-        justifyContent: 'center',
-        textAlign: 'center',
-        alignSelf: 'center',
-        fontWeight: 'bold',
-        color: '#fff'
-    },
-    imgs1: {
-        marginTop: hScale(10),
-        alignSelf: 'center'
-    }
+  main: { flex: 1, backgroundColor: '#F5F6FA' },
+
+  scrollContent: {
+    paddingHorizontal: wScale(16),
+    paddingBottom: hScale(20),
+  },
+
+  // Hero
+  heroSection: {
+    alignItems: 'center',
+    paddingTop: hScale(20),
+    paddingBottom: hScale(20),
+  },
+  iconCircle: {
+    width: wScale(80),
+    height: wScale(80),
+    borderRadius: wScale(40),
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: hScale(12),
+  },
+  heroTitle: {
+    fontSize: wScale(22),
+    fontWeight: '800',
+    color: '#111827',
+    letterSpacing: 0.2,
+    marginBottom: hScale(4),
+  },
+  heroSub: {
+    fontSize: wScale(13),
+    color: '#9CA3AF',
+    marginBottom: hScale(14),
+    textTransform: 'uppercase',
+    letterSpacing: 0.8,
+    fontWeight: '600',
+  },
+  activeBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: wScale(18),
+    paddingVertical: hScale(8),
+    borderRadius: wScale(30),
+    gap: wScale(8),
+  },
+  activeBadgeFlag: {
+    fontSize: wScale(18),
+  },
+  activeBadgeText: {
+    fontSize: wScale(14),
+    fontWeight: '700',
+    color: '#fff',
+    letterSpacing: 0.2,
+  },
+
+  // Card
+  card: {
+    backgroundColor: '#fff',
+    borderRadius: wScale(18),
+    overflow: 'hidden',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.07,
+    shadowRadius: 8,
+    marginBottom: hScale(20),
+  },
+
+  // Language row
+  langRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: wScale(16),
+    paddingVertical: hScale(14),
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+    borderWidth: 2,
+    borderColor: 'transparent',
+    marginHorizontal: wScale(6),
+    marginVertical: hScale(2),
+    borderRadius: wScale(12),
+  },
+  langRowActive: {
+    borderWidth: 1.5,
+  },
+  flagBox: {
+    width: wScale(38),
+    height: wScale(38),
+    borderRadius: wScale(19),
+    backgroundColor: '#F9FAFB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: wScale(14),
+  },
+  flagEmoji: {
+    fontSize: wScale(20),
+  },
+  langText: {
+    flex: 1,
+    fontSize: wScale(15),
+    color: '#374151',
+    fontWeight: '500',
+  },
+  checkCircle: {
+    width: wScale(26),
+    height: wScale(26),
+    borderRadius: wScale(13),
+    borderWidth: 1.5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  // Save button
+  saveBtn: {
+    borderRadius: wScale(14),
+    height: hScale(54),
+    alignItems: 'center',
+    justifyContent: 'center',
+    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15,
+    shadowRadius: 6,
+  },
+  saveBtnInner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: wScale(8),
+  },
+  saveBtnText: {
+    fontSize: wScale(16),
+    fontWeight: '800',
+    color: '#fff',
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
+  },
+  saveBtnArrow: {
+    fontSize: wScale(18),
+    color: '#fff',
+    fontWeight: '700',
+  },
 });
 
 export default LanguageSettings;
