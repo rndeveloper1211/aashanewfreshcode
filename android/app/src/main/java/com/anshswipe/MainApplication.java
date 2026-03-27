@@ -1,4 +1,4 @@
-package com.maxuspay;
+package com.maxuspayy;
 
 import android.app.Application;
 import com.facebook.react.PackageList;
@@ -11,11 +11,11 @@ import com.facebook.react.defaults.DefaultReactNativeHost;
 import com.facebook.react.defaults.DefaultNewArchitectureEntryPoint;
 import com.facebook.soloader.SoLoader;
 import java.util.List;
-import com.maxuspay.AepsPackage;
-import com.maxuspay.upi.UpiPackage;
-import com.maxuspay.location.LocationPackage; // <-- add this
-import com.maxuspay.security.SecurityPackage;
-import com.maxuspay.ContactPicker.ContactPickerPackage;
+import com.maxuspayy.AepsPackage;
+import com.maxuspayy.upi.UpiPackage;
+import com.maxuspayy.location.LocationPackage; // <-- add this
+import com.maxuspayy.security.SecurityPackage;
+import com.maxuspayy.ContactPicker.ContactPickerPackage;
 import androidx.multidex.MultiDexApplication;
 public class MainApplication extends MultiDexApplication implements ReactApplication {
 

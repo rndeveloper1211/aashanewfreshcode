@@ -152,11 +152,14 @@ const ElectricityOperatorBottomSheet = ({
   // Item tap handler
   const onSelectItem = useCallback((item: any) => {
     handleItemPress?.(item);   // optional chaining — undefined pe crash nahi hoga
-
+console.log('====================================');
+console.log(item);
+console.log('====================================');
     if (selectbool) {
       // Step 1: State selected → load operators
       setState(item['State Name']);
-      GetOptlist(item['State Id']);   // ← typo fix: 'Sate Id' → 'State Id'
+  
+      GetOptlist(item['Sate Id']);   // ← typo fix: 'Sate Id' → 'State Id'
       setSearchQuery('');
       setSelectbool(false);
     } else {

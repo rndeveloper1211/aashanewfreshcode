@@ -1,4 +1,4 @@
-package com.maxuspay.security;
+package com.maxuspayy.security;
 
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;

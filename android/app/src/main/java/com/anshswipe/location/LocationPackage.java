@@ -1,4 +1,4 @@
-package com.maxuspay.location;
+package com.maxuspayy.location;
 
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;

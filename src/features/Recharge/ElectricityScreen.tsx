@@ -54,16 +54,9 @@ const ElectricityScreen = () => {
   const [isOp, setIsop] = useState(false);
   const [operatorList, setoperatorList] = useState([]);
   const [isvisible, setIsvisible] = useState(false);
-  const [datatatype, setdatatype] = useState('');
-  const [maxlenghts, setmaxlenght] = useState();
-  const [minlenght, setminlenght] = useState('');
-
-  const [district, setdistrict] = useState('');
-  const [DistList, setDistList] = useState([]);
-  const [textInput1, setTextInput1] = useState('');
+  
   const [consumerNo, setconsumerNo] = useState(translate(''));
-  const [textInput3, setTextInput3] = useState('');
-  const [textInput4, setTextInput4] = useState('');
+
   const [accnumhint, setAccnumhint] = useState('');
   const [accmaxlength, setAccmaxlength] = useState(0);
   const [key2, setKey2] = useState('');
@@ -83,8 +76,6 @@ const ElectricityScreen = () => {
   const [values, setValues] = useState('');
   const [regx, setRegx] = useState('');
   const [visibility, setVisibility] = useState(false);
-  const [LoanBillOperator, setLoanBillOperator] = useState('Select Operator');
-  const [LoanBillOperators, setLoanBillOperators] = useState([]);
   const [optional, setOptional] = useState('');
   const [paramname, setParamName] = useState('Customer ID');
   const [isrecent, setIsrecent] = useState(false);
@@ -94,23 +85,11 @@ const ElectricityScreen = () => {
   const [reqId, setReqId] = useState('');
   const [agencyCode, setAgencyCode] = useState('');
   const [agencyCode2, setAgencyCode2] = useState('');
-  const [RESULT, setRESULT] = useState()
 
 
   const navigation = useNavigation<any>();
   const { get, post } = useAxiosHook();
-  const handlePayPress = () => {
-    if (!CustomerID || (!amount && !billAmount)) {
-      ToastAndroid.show(
-        'Please enter Customer ID and Amount',
-        ToastAndroid.SHORT,
-      );
-    } else {
-      ToastAndroid.show('Text Field Complated!', ToastAndroid.SHORT);
-
-      setProceedSheetVisible(true);
-    }
-  };
+ 
 
 
   useEffect(() => {
@@ -224,8 +203,14 @@ const ElectricityScreen = () => {
   async function stateList() {
     try {
       const url = `${APP_URLS.statelist}`;
-      const data = await get({ url: url });
-      setstateslist(data);
+      const data = await get({  url });
+
+      console.log('====================================');
+      console.log(data );
+      console.log('====================================');
+
+      
+      setstateslist(data );
       return data;
     } catch (error) {
       console.error('Error fetching  state list:', error.message);
@@ -337,13 +322,19 @@ const ElectricityScreen = () => {
     userId,
   ]);
   async function GetOptlist(state_id: any) {
-    await setoperatorList([]);
-    await setopt(translate('Select Your Operator'));
+     setoperatorList([]);
+     setopt('Select Your Operator');
     try {
       const url = `${APP_URLS.electricity_opt_Via_StateId}${state_id}`;
-      const dataa = await get({ url: url });
+      const dataa = await get({ url });
       console.log(dataa['myprop2Items']);
-      await setoperatorList(dataa['myprop2Items']);
+      console.log('====================================');
+
+
+      console.log(url);
+      console.log(dataa);
+      console.log('====================================');
+       setoperatorList(dataa['myprop2Items']);
       setpath(dataa["path"]);
 
       if (operatorList != null) {
@@ -485,14 +476,14 @@ const ElectricityScreen = () => {
         )}
 
         <ElectricityOperatorBottomSheet
-          // showState={false}
+           showState={false}
           isModalVisible={isvisible}
           stateData={stateslist}
           setModalVisible={setIsvisible}
           setOperatorcode={setoptcode}
           setOperator={setopt}
           operatorData={operatorList}
-          GetOptlist={GetOptlist}
+          GetOptlist={(v)=>GetOptlist(v)}
           handleItemPress={(item) => { handleItemPress(item) }}
           setState={setStateName}
 

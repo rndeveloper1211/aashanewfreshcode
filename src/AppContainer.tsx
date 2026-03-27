@@ -398,7 +398,13 @@ const bundleId = DeviceInfo.getBundleId(); // Get it locally inside fetchAppData
     if (connectionLost) {
       return <ConnectionLost onRetry={() => console.log('retry')} />
     }
-    if (!update && allowed == true) {
+
+    if(APP_URLS.AppName ==='Maxus Pay'){
+        if (!update && allowed == true) {
+      return <Updatebox isVer={undefined} loading={undefined} isplay={false} />;
+    }
+    }
+    if (!update) {
       return <Updatebox isVer={undefined} loading={undefined} isplay={false} />;
     }
 

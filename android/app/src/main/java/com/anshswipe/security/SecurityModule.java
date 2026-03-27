@@ -1,4 +1,4 @@
-package com.maxuspay.security;
+package com.maxuspayy.security;
 
 import android.app.Activity;
 import android.app.KeyguardManager;

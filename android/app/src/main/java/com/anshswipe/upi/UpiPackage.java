@@ -1,4 +1,4 @@
-package com.maxuspay.upi;
+package com.maxuspayy.upi;
 
 import androidx.annotation.NonNull;
 

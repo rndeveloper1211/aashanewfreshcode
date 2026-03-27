@@ -1,4 +1,4 @@
-package com.maxuspay.ContactPicker;
+package com.maxuspayy.ContactPicker;
 
 import com.facebook.react.ReactPackage;
 import com.facebook.react.bridge.NativeModule;

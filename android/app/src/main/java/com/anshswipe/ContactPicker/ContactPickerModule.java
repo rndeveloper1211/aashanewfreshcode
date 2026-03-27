@@ -1,4 +1,4 @@
-package com.maxuspay.ContactPicker;
+package com.maxuspayy.ContactPicker;
 
 import android.app.Activity;
 import android.content.Intent;

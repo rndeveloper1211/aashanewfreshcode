@@ -1,4 +1,4 @@
-package com.maxuspay;
+package com.maxuspayy;
 
 import android.app.Activity;
 import android.content.Intent;

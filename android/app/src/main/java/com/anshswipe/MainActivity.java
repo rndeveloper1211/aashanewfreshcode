@@ -1,4 +1,4 @@
-package com.maxuspay;
+package com.maxuspayy;
 
 import android.os.Bundle;
 import androidx.activity.EdgeToEdge;
@@ -12,7 +12,7 @@ public class MainActivity extends ReactActivity {
 
   @Override
   protected String getMainComponentName() {
-    return "maxuspay";
+    return "maxuspayy";
   }
 
   @Override

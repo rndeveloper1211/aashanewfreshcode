@@ -1,4 +1,4 @@
-package com.maxuspay.location;
+package com.maxuspayy.location;
 
 import android.Manifest;
 import android.app.Activity;

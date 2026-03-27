@@ -12,15 +12,15 @@ react {
 def enableProguardInReleaseBuilds = true
 
 android {
-    namespace "com.maxuspay"
+    namespace "com.maxuspayy"
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.maxuspay"
+        applicationId "com.maxuspayy"
         minSdk 24
         targetSdk 35
-        versionCode 8         // Version update for 0.0.6
-        versionName "0.0.8"   
+        versionCode 1        
+        versionName "0.0.1"   
         multiDexEnabled true
 
         ndk {
@@ -35,7 +35,11 @@ android {
     }
 }
     }
-
+ externalNativeBuild {
+        cmake {
+            version "3.31.6"
+        }
+    }
     signingConfigs {
         release {
             if (project.hasProperty('MYAPP_UPLOAD_STORE_FILE')) {
@@ -66,7 +70,8 @@ android {
         excludes += 'META-INF/*.kotlin_module'
     }
     jniLibs {
-        useLegacyPackaging = false
+      //  keepDebugSymbols = true
+         useLegacyPackaging = false
 
         pickFirsts += [
             '**/libc++_shared.so'
