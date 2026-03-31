@@ -63,6 +63,7 @@ const SignUpScreen = ({ route }) => {
   const [pincode, setPincode] = useState('');
   const [svg, setSvg] = useState([]);
   const [Radius2, setRadius2] = useState(Number);
+  const [distid, setDistid] = useState('');
 
   const onStepPress = position => {
     setCurrentPage(position);
@@ -142,7 +143,9 @@ const SignUpScreen = ({ route }) => {
         pincode,
         setPincode,
         Radius2,
-        setRadius2
+        setRadius2,
+        distid,
+        setDistid,
       }}>
       <>
         <View style={{ flex: 1, backgroundColor: colors.base }}>

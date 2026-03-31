@@ -55,7 +55,8 @@ export type SignUpContext = {
   setSvg: Dispatch<SetStateAction<[]>>;
   Radius2:number;
   setRadius2:Dispatch<SetStateAction<number | undefined>>;
-
+  distid:string;
+  setDistid:Dispatch<SetStateAction<string | undefined>>;
 };
 
 export const SignUpContext = createContext<SignUpContext>({
@@ -111,6 +112,8 @@ export const SignUpContext = createContext<SignUpContext>({
   setRadius2:noop,
   currentPage: 0,
   setCurrentPage: noop,
+  distid:'',
+  setDistid:noop,
 
 });
   

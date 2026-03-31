@@ -243,7 +243,7 @@ const OperatorBottomSheet: React.FC<Props> = ({
     } else {
       // Step 2: circle selected → done
       setCircle(item["State Name"]);
-      setState(item["State Name"]);
+      setState(item["Sate Name"]);
       setModalVisible(false);
     }
   };

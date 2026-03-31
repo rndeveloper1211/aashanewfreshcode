@@ -61,7 +61,8 @@ const PersonalInfoStep = () => {
     pincode,
     setPincode,
     svg,
-    Radius2
+    Radius2,
+    setDistid
 
   } = useContext(SignUpContext);
 
@@ -87,6 +88,7 @@ const PersonalInfoStep = () => {
                   } else {
                     setShowDistrictList(false);
                     setDistrict(item['Dist Name']);
+                    setDistid(item['Dist Id'])
 
                   }
                 }}>

@@ -27,6 +27,9 @@ import FlotingInput from '../drawer/securityPages/FlotingInput';
 import { KeyboardAwareScrollView } from 'react-native-keyboard-aware-scroll-view';
 
 const VerifyInfoStep = () => {
+
+    const { colorConfig  ,deviceInfo } = useSelector((state: RootState) => state.userInfo)
+
   const { get } = useAxiosHook();
   const {
     dateOfBirth,
@@ -54,7 +57,8 @@ const VerifyInfoStep = () => {
     currentPage,
     stateId,
     svg,
-    Radius2
+    Radius2,
+    distid
   } = useContext(SignUpContext);
 
 
@@ -93,100 +97,83 @@ const VerifyInfoStep = () => {
 
   const navigation = useNavigation<any>();
 
-  const JoinUs = useCallback(async () => {
-    console.log(stateId)
-    try {
-      const url =   `${APP_URLS.baseapiurl}`;
-      const Pin = '1234';
+const JoinUs = useCallback(async () => {
+  try {
+    const url = 'http://native.anshswipe.com/api/Account/Registernew';
+    const Pin = '1234';
+    const address = deviceInfo.address || 'Unknown';
+  console.log(  username, dateOfBirth, "21", "1", address,
+      pincode, businessName, mobileNumber, email, referralCode,
+      password, businessType, personalAadhar, personalPAN, gst, Pin)
+    // 1. Encryption
+    const encryption = await encrypt([
+      username, dateOfBirth, stateId, "1", address,
+      pincode, businessName, mobileNumber, email, referralCode,
+      password, businessType, personalAadhar, personalPAN, gst, Pin
+    ]);
 
-      const encryption = await encrypt([
-        username,
-        dateOfBirth,
-        stateId.toString(),
-        district,
-        pincode,
-        businessName,
-        mobileNumber,
-        email,
-        referralCode,
-        password,
-        businessType,
-        personalAadhar,
-        personalPAN,
-        gst,
-        Pin,
+    console.log("fdhfkskdf",encryption);
 
-      ]);
+    // 2. Data Prepare (Directly mapping without double encoding)
+    const payload = {
+      Name: encryption.encryptedData[0],
+      Dob: encryption.encryptedData[1],
+      state: encryption.encryptedData[2],
+      distict: encryption.encryptedData[3], // Spelling check: district?
+      Address: encryption.encryptedData[4],
+      PinCode: encryption.encryptedData[5],
+      Businessname: encryption.encryptedData[6],
+      phone: encryption.encryptedData[7],
+      Email: encryption.encryptedData[8],
+      ReferralCode: encryption.encryptedData[9],
+      Password: encryption.encryptedData[10],
+      businesstype: encryption.encryptedData[11],
+      aadharcard: encryption.encryptedData[12],
+      pancard: encryption.encryptedData[13],
+      Gst: encryption.encryptedData[14],
+      PIN:  encryption.encryptedData[15], // Encrypted PIN use karein
+      valuess1: encryption.keyEncode,
+      valuesss2: encryption.ivEncode,
+    };
 
-      const jsonString = {
-        Name: encodeURIComponent(encryption.encryptedData[0]),
-        Dob: encodeURIComponent(encryption.encryptedData[1]),
-        state: encodeURIComponent(encryption.encryptedData[2]),
-        distict: encodeURIComponent(encryption.encryptedData[3]),
-        Address: encodeURIComponent(encryption.encryptedData[4]),
-        PinCode: encodeURIComponent(encryption.encryptedData[5]),
-        Businessname: encodeURIComponent(encryption.encryptedData[6]),
-        phone: encodeURIComponent(encryption.encryptedData[7]),
-        Email: encodeURIComponent(encryption.encryptedData[8]),
-        ReferralCode: referralCode,
-        Password: encodeURIComponent(encryption.encryptedData[10]),
-        businesstype: encodeURIComponent(encryption.encryptedData[11]),
-        aadharcard: encodeURIComponent(encryption.encryptedData[12]),
-        pancard: encodeURIComponent(encryption.encryptedData[13]),
-        Gst: encodeURIComponent(encryption.encryptedData[14]),
-        PIN: "1234",
-        valuess1: encodeURIComponent(encryption.keyEncode),
-        valuesss2: encodeURIComponent(encryption.ivEncode),
+    console.log(payload);
 
-      };
+    const options = {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    };
 
-      console.log(encodeURIComponent(encryption.encryptedData[15]),)
-      const data1 = Object.fromEntries(
-        Object.entries(jsonString).map(([key, value]) => [key, decodeURIComponent(value)])
-      );
-
-      const data = await JSON.stringify(data1);
-      console.log(data);
-
-      const options = {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: data
-      };
-      try {
-        const response = await fetch(url, options);
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const responseData = await response.json();
-        console.log(responseData);
-        Alert.alert(
-          "Alert",
-          `Response: ${responseData.Response}\nMessage: ${responseData.Message}\n`,
-          [
-            {
-              text: responseData.Response === "Success" ? "Go to Login Screen" : "OK",
-              onPress: () => {
-                if (responseData.Response === "Success") {
-                  navigation.navigate('LoginScreen');
-                }
+    // 3. API Call
+    const response = await fetch(url, options);
+    const responseData = await response.json();
+     console.log(responseData)
+    if (response.ok) {
+      Alert.alert(
+        "Alert",
+        `Response: ${responseData.Response}\nMessage: ${responseData.Message}`,
+        [
+          {
+            text: responseData.Response === "Success" ? "Go to Login Screen" : "OK",
+            onPress: () => {
+              if (responseData.Response === "Success") {
+                navigation.navigate('LoginScreen');
               }
             }
-          ]
-        );
-
-
-
-      } catch (error) {
-        console.error('Error in fetch request:', error);
-      }
-    } catch (error) {
-      console.error('Error in JoinUs function:', error);
+          }
+        ]
+      );
+    } else {
+      Alert.alert("Error", "Server side issue occurred.");
     }
-  }, [username, dateOfBirth, addressState, district, pincode, businessName, mobileNumber, email, referralCode, password, businessType, personalAadhar, personalPAN, gst, aadharFront, aadharBack, panImg, gstImg]);
 
+  } catch (error) {
+    console.error('Error in JoinUs function:', error);
+    Alert.alert("Error", "Something went wrong. Please try again.");
+  }
+  // Dependency array mein stateId aur baki missing fields add karein
+}, [username, dateOfBirth, stateId, district, pincode, businessName, mobileNumber, email, referralCode, password, businessType, personalAadhar, personalPAN, gst, navigation]);
+  
   return (
 <KeyboardAwareScrollView
     // यह स्क्रीन को पूरी जगह लेने में मदद करता है

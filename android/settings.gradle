@@ -1,7 +1,17 @@
-rootProject.name = 'aircharge'
-
-apply from: file("../node_modules/@react-native-community/cli-platform-android/native_modules.gradle"); 
-applyNativeModulesSettingsGradle(settings)
-
+pluginManagement {
+    includeBuild("../node_modules/@react-native/gradle-plugin")
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+plugins {
+    id("com.facebook.react.settings")
+}
+includeBuild("../node_modules/@react-native/gradle-plugin")
+extensions.configure(com.facebook.react.ReactSettingsExtension) { ex ->
+    ex.autolinkLibrariesFromCommand()
+}
+rootProject.name = 'maxuspayy'
 include ':app'
-includeBuild('../node_modules/@react-native/gradle-plugin')
